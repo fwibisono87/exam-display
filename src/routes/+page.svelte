@@ -2,6 +2,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	
 	let serverTime = '';
+	let serverDate = '';
 	let timezone = '';
 	let healthStatus = 'checking...';
 	let lastHealthCheck = '';
@@ -35,20 +36,29 @@
 			const data: TimeResponse = await response.json();
 			
 			const date = new Date(data.time);
-			serverTime = date.toLocaleString('en-US', {
-				weekday: 'long',
-				year: 'numeric',
-				month: 'long',
-				day: 'numeric',
+			
+			// Separate time and date formatting
+			const timeOnly = date.toLocaleString('en-US', {
 				hour: '2-digit',
 				minute: '2-digit',
 				second: '2-digit',
 				timeZoneName: 'short'
 			});
+			
+			const dateOnly = date.toLocaleString('en-US', {
+				weekday: 'long',
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric'
+			});
+			
+			serverTime = timeOnly;
+			serverDate = dateOnly;
 			timezone = data.timezone;
 		} catch (error) {
 			console.error('Error fetching server time:', error);
 			serverTime = 'Error loading time';
+			serverDate = 'Error loading date';
 		}
 	}
 	
@@ -100,9 +110,16 @@
 				<h2 class="text-3xl font-semibold text-gray-800 mb-8">Current Server Time</h2>
 				
 				<div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-12 mb-6">
-					<div class="text-6xl md:text-7xl font-mono font-bold text-indigo-600 mb-4">
+					<!-- Prominent Time Display -->
+					<div class="text-8xl md:text-9xl font-mono font-bold text-indigo-600 mb-6 leading-none">
 						{serverTime || 'Loading...'}
 					</div>
+					
+					<!-- Smaller Date Display -->
+					<div class="text-2xl md:text-3xl text-gray-700 mb-4 font-medium">
+						{serverDate || ''}
+					</div>
+					
 					{#if timezone}
 						<div class="text-lg text-gray-600">
 							Timezone: {timezone}
