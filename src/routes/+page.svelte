@@ -350,6 +350,40 @@
 		localStorage.setItem('examSettings', JSON.stringify(settings));
 	}
 	
+	function clearAllSettings() {
+		// Reset all exam settings to defaults
+		examStartTime = '';
+		examEndTime = '';
+		examMidpointTime = '';
+		final30Time = '';
+		final15Time = '';
+		final5Time = '';
+		customTitle = 'Exam Time Display';
+		announcementPosition = 'top';
+		announcements = '';
+		showAnnouncements = true;
+		isEditingAnnouncements = false;
+		
+		// Reset checkpoints to defaults
+		checkpoints = [
+			{ id: 'midpoint', name: 'Exam Midpoint', time: '', enabled: true, emoji: '⏰', color: '#3B82F6', isCustom: false },
+			{ id: 'final30', name: 'Final 30 Minutes', time: '', enabled: true, emoji: '⚠️', color: '#F59E0B', isCustom: false },
+			{ id: 'final15', name: 'Final 15 Minutes', time: '', enabled: true, emoji: '🔔', color: '#EF4444', isCustom: false },
+			{ id: 'final5', name: 'Final 5 Minutes', time: '', enabled: true, emoji: '🚨', color: '#DC2626', isCustom: false }
+		];
+		
+		// Clear custom checkpoints
+		customCheckpoints = [];
+		
+		// Clear active/next checkpoint states
+		activeCheckpoint = null;
+		nextCheckpoint = null;
+		
+		// Clear localStorage
+		localStorage.removeItem('examSettings');
+		localStorage.removeItem('examAnnouncements');
+	}
+	
 	function loadExamSettings() {
 		const saved = localStorage.getItem('examSettings');
 		if (saved) {
@@ -407,6 +441,7 @@
 			on:removeCustomCheckpoint={(event) => removeCustomCheckpoint(event.detail.id)}
 			on:toggleAnnouncementsEdit={toggleAnnouncementsEdit}
 			on:saveAnnouncements={saveAnnouncements}
+			on:clearAllSettings={clearAllSettings}
 			on:close={() => showOperatorSidebar = false}
 		/>
 	{/if}

@@ -58,6 +58,12 @@
 	function closeSidebar() {
 		dispatch('close');
 	}
+
+	function clearAllSettings() {
+		if (confirm('Are you sure you want to clear all exam settings? This action cannot be undone.')) {
+			dispatch('clearAllSettings');
+		}
+	}
 </script>
 
 <div class="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-40 overflow-y-auto border-l border-gray-200">
@@ -386,5 +392,30 @@
 				{/if}
 			</div>
 		{/if}
+
+		<!-- Clear All Settings Section -->
+		<div class="border-t pt-6 mt-8">
+			<h3 class="text-lg font-semibold text-gray-800 mb-4">Reset for Next Exam</h3>
+			<div class="bg-red-50 border border-red-200 rounded-lg p-4">
+				<div class="mb-3">
+					<p class="text-sm text-red-800 mb-2">
+						<strong>Warning:</strong> This will clear all exam settings including:
+					</p>
+					<ul class="text-xs text-red-700 ml-4 list-disc space-y-1">
+						<li>Exam start and end times</li>
+						<li>All custom checkpoints</li>
+						<li>Announcements</li>
+						<li>Custom title</li>
+						<li>Announcement position settings</li>
+					</ul>
+				</div>
+				<button
+					on:click={clearAllSettings}
+					class="w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+				>
+					Clear All Settings
+				</button>
+			</div>
+		</div>
 	</div>
 </div>
