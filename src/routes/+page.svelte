@@ -94,96 +94,59 @@
 			<p class="text-lg text-gray-600">Real-time server clock with health monitoring</p>
 		</header>
 		
-		<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-			<!-- Time Display Card -->
-			<div class="bg-white rounded-lg shadow-lg p-8">
-				<div class="text-center">
-					<h2 class="text-2xl font-semibold text-gray-800 mb-6">Current Server Time</h2>
-					
-					<div class="bg-gray-50 rounded-lg p-6 mb-4">
-						<div class="text-3xl font-mono font-bold text-indigo-600 mb-2">
-							{serverTime || 'Loading...'}
+		<!-- Prominent Time Display -->
+		<div class="bg-white rounded-lg shadow-xl p-12 mb-8">
+			<div class="text-center">
+				<h2 class="text-3xl font-semibold text-gray-800 mb-8">Current Server Time</h2>
+				
+				<div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-12 mb-6">
+					<div class="text-6xl md:text-7xl font-mono font-bold text-indigo-600 mb-4">
+						{serverTime || 'Loading...'}
+					</div>
+					{#if timezone}
+						<div class="text-lg text-gray-600">
+							Timezone: {timezone}
 						</div>
-						{#if timezone}
-							<div class="text-sm text-gray-500">
-								Timezone: {timezone}
-							</div>
-						{/if}
-					</div>
-					
-					<div class="text-xs text-gray-400">
-						⚡ Updates every second from server
-					</div>
+					{/if}
 				</div>
-			</div>
-			
-			<!-- Health Status Card -->
-			<div class="bg-white rounded-lg shadow-lg p-8">
-				<div class="text-center">
-					<h2 class="text-2xl font-semibold text-gray-800 mb-6">Server Health</h2>
-					
-					<div class="space-y-4">
-						<div class="flex items-center justify-center space-x-2">
-							<div class="w-3 h-3 rounded-full {healthStatus === 'healthy' ? 'bg-green-500' : 'bg-red-500'}"></div>
-							<span class="text-lg font-medium capitalize {healthStatus === 'healthy' ? 'text-green-700' : 'text-red-700'}">
-								{healthStatus}
-							</span>
-						</div>
-						
-						<div class="bg-gray-50 rounded-lg p-4 space-y-2">
-							<div class="flex justify-between text-sm">
-								<span class="text-gray-600">Last Check:</span>
-								<span class="font-mono">{lastHealthCheck}</span>
-							</div>
-							<div class="flex justify-between text-sm">
-								<span class="text-gray-600">Response Time:</span>
-								<span class="font-mono">{responseTime}ms</span>
-							</div>
-						</div>
-						
-						<button 
-							on:click={checkServerHealth}
-							class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
-						>
-							Check Now
-						</button>
-					</div>
-					
-					<div class="text-xs text-gray-400 mt-4">
-						🔄 Auto-checks every 30 seconds
-					</div>
+				
+				<div class="text-sm text-gray-500 flex items-center justify-center space-x-2">
+					<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+					<span>Updates every second from server</span>
 				</div>
 			</div>
 		</div>
 		
-		<!-- Additional Info -->
-		<div class="mt-12 bg-white rounded-lg shadow-lg p-6">
-			<h3 class="text-lg font-semibold text-gray-800 mb-4">About This Application</h3>
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-				<div class="flex items-center space-x-2">
-					<span class="text-green-500">✓</span>
-					<span>Server-side time generation</span>
+		<!-- Compact Health Status -->
+		<div class="bg-white rounded-lg shadow-lg p-6">
+			<div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+				<div class="flex items-center space-x-3">
+					<h3 class="text-lg font-semibold text-gray-800">Server Health</h3>
+					<div class="flex items-center space-x-2">
+						<div class="w-2.5 h-2.5 rounded-full {healthStatus === 'healthy' ? 'bg-green-500' : 'bg-red-500'}"></div>
+						<span class="text-sm font-medium capitalize {healthStatus === 'healthy' ? 'text-green-700' : 'text-red-700'}">
+							{healthStatus}
+						</span>
+					</div>
 				</div>
-				<div class="flex items-center space-x-2">
-					<span class="text-green-500">✓</span>
-					<span>Real-time updates</span>
+				
+				<div class="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-6 text-sm text-gray-600">
+					<div class="flex justify-between md:block">
+						<span class="text-gray-500">Last Check:</span>
+						<span class="font-mono md:ml-2">{lastHealthCheck}</span>
+					</div>
+					<div class="flex justify-between md:block">
+						<span class="text-gray-500">Response:</span>
+						<span class="font-mono md:ml-2">{responseTime}ms</span>
+					</div>
 				</div>
-				<div class="flex items-center space-x-2">
-					<span class="text-green-500">✓</span>
-					<span>Health monitoring</span>
-				</div>
-				<div class="flex items-center space-x-2">
-					<span class="text-green-500">✓</span>
-					<span>Netlify deployment ready</span>
-				</div>
-				<div class="flex items-center space-x-2">
-					<span class="text-green-500">✓</span>
-					<span>No client-side time dependency</span>
-				</div>
-				<div class="flex items-center space-x-2">
-					<span class="text-green-500">✓</span>
-					<span>Responsive design</span>
-				</div>
+				
+				<button 
+					on:click={checkServerHealth}
+					class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+				>
+					Check Now
+				</button>
 			</div>
 		</div>
 	</div>
