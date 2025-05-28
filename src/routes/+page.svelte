@@ -16,6 +16,37 @@
 	let serverTimeOffset = 0; // Offset between server time and client time
 	let announcements = ''; // Announcements text for exam setting
 	let isEditingAnnouncements = false; // Toggle for editing mode
+	let showOperatorSidebar = false; // Toggle for operator controls
+	
+	// Exam timing settings
+	let examStartTime = '';
+	let examEndTime = '';
+	let examMidpointTime = '';
+	let final30Time = '';
+	let final15Time = '';
+	let final5Time = '';
+	
+	// Checkpoint settings
+	interface Checkpoint {
+		id: string;
+		name: string;
+		time: string;
+		enabled: boolean;
+		emoji: string;
+		color: string;
+		isCustom: boolean;
+	}
+	
+	let checkpoints: Checkpoint[] = [
+		{ id: 'midpoint', name: 'Exam Midpoint', time: '', enabled: true, emoji: '⏰', color: '#3B82F6', isCustom: false },
+		{ id: 'final30', name: 'Final 30 Minutes', time: '', enabled: true, emoji: '⚠️', color: '#F59E0B', isCustom: false },
+		{ id: 'final15', name: 'Final 15 Minutes', time: '', enabled: true, emoji: '🔔', color: '#EF4444', isCustom: false },
+		{ id: 'final5', name: 'Final 5 Minutes', time: '', enabled: true, emoji: '🚨', color: '#DC2626', isCustom: false }
+	];
+	
+	let customCheckpoints: Checkpoint[] = [];
+	let activeCheckpoint: Checkpoint | null = null;
+	let nextCheckpoint: Checkpoint | null = null;
 	
 	interface TimeResponse {
 		time: string;
@@ -68,6 +99,9 @@
 	function updateTimeDisplay() {
 		const now = new Date();
 		currentTime = new Date(now.getTime() + serverTimeOffset);
+		
+		// Check for active checkpoints
+		updateCheckpointStatus();
 		
 		// Format time
 		const timeOnly = currentTime.toLocaleString('en-US', {
@@ -133,8 +167,9 @@
 	}
 	
 	onMount(() => {
-		// Load saved announcements
+		// Load saved settings
 		loadAnnouncements();
+		loadExamSettings();
 		
 		// Fetch initial data
 		fetchServerTime();
@@ -183,6 +218,147 @@
 		}
 	}
 	
+	// Calculate automatic checkpoint times based on exam start and end
+	function calculateCheckpointTimes() {
+		if (!examStartTime || !examEndTime) return;
+		
+		const start = new Date(`1970-01-01T${examStartTime}`);
+		const end = new Date(`1970-01-01T${examEndTime}`);
+		
+		// Handle next day scenarios
+		if (end < start) {
+			end.setDate(end.getDate() + 1);
+		}
+		
+		const duration = end.getTime() - start.getTime();
+		const midpoint = new Date(start.getTime() + duration / 2);
+		
+		// Calculate checkpoint times
+		examMidpointTime = midpoint.toTimeString().slice(0, 5);
+		final30Time = new Date(end.getTime() - 30 * 60000).toTimeString().slice(0, 5);
+		final15Time = new Date(end.getTime() - 15 * 60000).toTimeString().slice(0, 5);
+		final5Time = new Date(end.getTime() - 5 * 60000).toTimeString().slice(0, 5);
+		
+		// Update checkpoint objects
+		updateCheckpointObjects();
+		saveExamSettings();
+	}
+	
+	function updateCheckpointObjects() {
+		checkpoints[0].time = examMidpointTime;
+		checkpoints[1].time = final30Time;
+		checkpoints[2].time = final15Time;
+		checkpoints[3].time = final5Time;
+	}
+	
+	function updateCheckpointStatus() {
+		if (!currentTime) return;
+		
+		const currentTimeStr = currentTime.toTimeString().slice(0, 5);
+		
+		// Create a comprehensive list of all checkpoints including start and end times
+		const allCheckpoints = [];
+		
+		// Add exam start checkpoint if defined
+		if (examStartTime) {
+			allCheckpoints.push({
+				id: 'exam-start',
+				name: 'Exam Start',
+				time: examStartTime,
+				enabled: true,
+				emoji: '🟢',
+				color: '#10B981',
+				isCustom: false
+			});
+		}
+		
+		// Add regular checkpoints
+		allCheckpoints.push(...checkpoints.filter(cp => cp.enabled && cp.time));
+		
+		// Add custom checkpoints
+		allCheckpoints.push(...customCheckpoints.filter(cp => cp.enabled && cp.time));
+		
+		// Add exam end checkpoint if defined
+		if (examEndTime) {
+			allCheckpoints.push({
+				id: 'exam-end',
+				name: 'Exam End',
+				time: examEndTime,
+				enabled: true,
+				emoji: '🔴',
+				color: '#EF4444',
+				isCustom: false
+			});
+		}
+		
+		// Sort all checkpoints by time
+		allCheckpoints.sort((a, b) => a.time.localeCompare(b.time));
+		
+		// Find active checkpoint (current time has passed this checkpoint)
+		let newActiveCheckpoint = null;
+		let newNextCheckpoint = null;
+		
+		for (const checkpoint of allCheckpoints) {
+			if (currentTimeStr >= checkpoint.time) {
+				newActiveCheckpoint = checkpoint;
+			} else if (!newNextCheckpoint && currentTimeStr < checkpoint.time) {
+				newNextCheckpoint = checkpoint;
+				break; // We found the next one, no need to continue
+			}
+		}
+		
+		activeCheckpoint = newActiveCheckpoint;
+		nextCheckpoint = newNextCheckpoint;
+	}
+	
+	function addCustomCheckpoint() {
+		const newCheckpoint: Checkpoint = {
+			id: `custom-${Date.now()}`,
+			name: 'Custom Checkpoint',
+			time: '',
+			enabled: true,
+			emoji: '📝',
+			color: '#6366F1',
+			isCustom: true
+		};
+		customCheckpoints = [...customCheckpoints, newCheckpoint];
+		saveExamSettings();
+	}
+	
+	function removeCustomCheckpoint(id: string) {
+		customCheckpoints = customCheckpoints.filter(cp => cp.id !== id);
+		saveExamSettings();
+	}
+	
+	function saveExamSettings() {
+		const settings = {
+			examStartTime,
+			examEndTime,
+			examMidpointTime,
+			final30Time,
+			final15Time,
+			final5Time,
+			checkpoints,
+			customCheckpoints
+		};
+		localStorage.setItem('examSettings', JSON.stringify(settings));
+	}
+	
+	function loadExamSettings() {
+		const saved = localStorage.getItem('examSettings');
+		if (saved) {
+			const settings = JSON.parse(saved);
+			examStartTime = settings.examStartTime || '';
+			examEndTime = settings.examEndTime || '';
+			examMidpointTime = settings.examMidpointTime || '';
+			final30Time = settings.final30Time || '';
+			final15Time = settings.final15Time || '';
+			final5Time = settings.final5Time || '';
+			if (settings.checkpoints) checkpoints = settings.checkpoints;
+			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
+		}
+	}
+	
 	onDestroy(() => {
 		if (interval) clearInterval(interval);
 		if (healthInterval) clearInterval(healthInterval);
@@ -190,8 +366,258 @@
 	});
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
-	<div class="max-w-6xl mx-auto">
+<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 relative">
+	<!-- Operator Controls Toggle -->
+	<button
+		on:click={() => showOperatorSidebar = !showOperatorSidebar}
+		class="fixed top-4 right-4 z-50 bg-gray-800 hover:bg-gray-900 text-white p-3 rounded-full shadow-lg transition-colors"
+		title="Toggle Operator Controls"
+	>
+		<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+		</svg>
+	</button>
+
+	<!-- Operator Sidebar -->
+	{#if showOperatorSidebar}
+		<div class="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-40 overflow-y-auto border-l border-gray-200">
+			<div class="p-6">
+				<div class="flex items-center justify-between mb-6">
+					<h2 class="text-xl font-bold text-gray-900">Operator Controls</h2>
+					<button
+						on:click={() => showOperatorSidebar = false}
+						class="text-gray-500 hover:text-gray-700"
+					>
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+						</svg>
+					</button>
+				</div>
+
+				<!-- Exam Timing Section -->
+				<div class="mb-8">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Exam Timing</h3>
+					
+					<div class="space-y-4">
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-1">Exam Start Time</label>
+							<input
+								type="time"
+								bind:value={examStartTime}
+								on:change={calculateCheckpointTimes}
+								class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							/>
+						</div>
+						
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-1">Exam End Time</label>
+							<input
+								type="time"
+								bind:value={examEndTime}
+								on:change={calculateCheckpointTimes}
+								class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+							/>
+						</div>
+						
+						{#if examStartTime && examEndTime}
+							<button
+								on:click={calculateCheckpointTimes}
+								class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
+							>
+								Auto-Calculate Checkpoints
+							</button>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Predefined Checkpoints -->
+				<div class="mb-8">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Checkpoints</h3>
+					
+					<!-- Note about automatic start/end checkpoints -->
+					{#if examStartTime || examEndTime}
+						<div class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+							<div class="text-sm text-blue-800">
+								<div class="font-medium mb-1">Automatic Checkpoints:</div>
+								{#if examStartTime}
+									<div class="flex items-center mb-1">
+										<span class="mr-2">🟢</span>
+										<span>Exam Start at {examStartTime}</span>
+									</div>
+								{/if}
+								{#if examEndTime}
+									<div class="flex items-center">
+										<span class="mr-2">🔴</span>
+										<span>Exam End at {examEndTime}</span>
+									</div>
+								{/if}
+							</div>
+						</div>
+					{/if}
+					
+					{#each checkpoints as checkpoint, index}
+						<div class="border border-gray-200 rounded-lg p-4 mb-3">
+							<div class="flex items-center justify-between mb-3">
+								<label class="flex items-center">
+									<input
+										type="checkbox"
+										bind:checked={checkpoint.enabled}
+										on:change={saveExamSettings}
+										class="mr-2"
+									/>
+									<span class="font-medium text-gray-700">{checkpoint.name}</span>
+								</label>
+							</div>
+							
+							<div class="grid grid-cols-2 gap-3 mb-3">
+								<div>
+									<label class="block text-xs text-gray-600 mb-1">Time</label>
+									<input
+										type="time"
+										bind:value={checkpoint.time}
+										on:change={saveExamSettings}
+										class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label class="block text-xs text-gray-600 mb-1">Emoji</label>
+									<input
+										type="text"
+										bind:value={checkpoint.emoji}
+										on:change={saveExamSettings}
+										class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+										maxlength="4"
+									/>
+								</div>
+							</div>
+							
+							<div>
+								<label class="block text-xs text-gray-600 mb-1">Color</label>
+								<input
+									type="color"
+									bind:value={checkpoint.color}
+									on:change={saveExamSettings}
+									class="w-full h-8 border border-gray-300 rounded"
+								/>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				<!-- Custom Checkpoints -->
+				<div class="mb-8">
+					<div class="flex items-center justify-between mb-4">
+						<h3 class="text-lg font-semibold text-gray-800">Custom Checkpoints</h3>
+						<button
+							on:click={addCustomCheckpoint}
+							class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm transition-colors"
+						>
+							+ Add
+						</button>
+					</div>
+					
+					{#each customCheckpoints as checkpoint}
+						<div class="border border-gray-200 rounded-lg p-4 mb-3">
+							<div class="flex items-center justify-between mb-3">
+								<input
+									type="text"
+									bind:value={checkpoint.name}
+									on:change={saveExamSettings}
+									class="flex-1 p-1 text-sm font-medium border-0 border-b border-gray-300 focus:border-blue-500 focus:ring-0"
+									placeholder="Checkpoint name"
+								/>
+								<button
+									on:click={() => removeCustomCheckpoint(checkpoint.id)}
+									class="ml-2 text-red-500 hover:text-red-700 text-sm"
+								>
+									Remove
+								</button>
+							</div>
+							
+							<div class="flex items-center mb-3">
+								<input
+									type="checkbox"
+									bind:checked={checkpoint.enabled}
+									on:change={saveExamSettings}
+									class="mr-2"
+								/>
+								<span class="text-sm text-gray-600">Enabled</span>
+							</div>
+							
+							<div class="grid grid-cols-2 gap-3 mb-3">
+								<div>
+									<label class="block text-xs text-gray-600 mb-1">Time</label>
+									<input
+										type="time"
+										bind:value={checkpoint.time}
+										on:change={saveExamSettings}
+										class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+									/>
+								</div>
+								<div>
+									<label class="block text-xs text-gray-600 mb-1">Emoji</label>
+									<input
+										type="text"
+										bind:value={checkpoint.emoji}
+										on:change={saveExamSettings}
+										class="w-full p-2 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+										maxlength="4"
+									/>
+								</div>
+							</div>
+							
+							<div>
+								<label class="block text-xs text-gray-600 mb-1">Color</label>
+								<input
+									type="color"
+									bind:value={checkpoint.color}
+									on:change={saveExamSettings}
+									class="w-full h-8 border border-gray-300 rounded"
+								/>
+							</div>
+						</div>
+					{/each}
+					
+					{#if customCheckpoints.length === 0}
+						<p class="text-sm text-gray-500 italic">No custom checkpoints added</p>
+					{/if}
+				</div>
+
+				<!-- Current Status -->
+				{#if activeCheckpoint || nextCheckpoint}
+					<div class="border-t pt-6">
+						<h3 class="text-lg font-semibold text-gray-800 mb-4">Checkpoint Status</h3>
+						
+						{#if activeCheckpoint}
+							<div class="mb-3 p-3 rounded-lg" style="background-color: {activeCheckpoint.color}20; border-left: 4px solid {activeCheckpoint.color};">
+								<div class="flex items-center">
+									<span class="text-lg mr-2">{activeCheckpoint.emoji}</span>
+									<div>
+										<div class="font-medium text-gray-800">Active: {activeCheckpoint.name}</div>
+										<div class="text-sm text-gray-600">Since {activeCheckpoint.time}</div>
+									</div>
+								</div>
+							</div>
+						{/if}
+						
+						{#if nextCheckpoint}
+							<div class="p-3 bg-gray-50 rounded-lg">
+								<div class="flex items-center">
+									<span class="text-lg mr-2">{nextCheckpoint.emoji}</span>
+									<div>
+										<div class="font-medium text-gray-800">Next: {nextCheckpoint.name}</div>
+										<div class="text-sm text-gray-600">At {nextCheckpoint.time}</div>
+									</div>
+								</div>
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		</div>
+	{/if}
+
+	<div class="max-w-6xl mx-auto {showOperatorSidebar ? 'mr-96' : ''}">
 		<!-- Header for Exam Context -->
 		<header class="text-center mb-8">
 			<h1 class="text-3xl font-bold text-gray-900 mb-2">Exam Time Display</h1>
@@ -255,9 +681,20 @@
 		<!-- Prominent Time Display for Exam -->
 		<div class="bg-white rounded-lg shadow-xl p-8 mb-6">
 			<div class="text-center">
-				<div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-8 mb-4">
+				<!-- Active Checkpoint Banner -->
+				{#if activeCheckpoint}
+					<div class="mb-6 p-4 rounded-lg flex items-center justify-center" style="background-color: {activeCheckpoint.color}20; border: 2px solid {activeCheckpoint.color};">
+						<span class="text-3xl mr-3">{activeCheckpoint.emoji}</span>
+						<div class="text-left">
+							<div class="text-lg font-bold" style="color: {activeCheckpoint.color};">{activeCheckpoint.name}</div>
+							<div class="text-sm text-gray-600">Active since {activeCheckpoint.time}</div>
+						</div>
+					</div>
+				{/if}
+				
+				<div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-8 mb-4" style="{activeCheckpoint ? `background: linear-gradient(135deg, ${activeCheckpoint.color}10, ${activeCheckpoint.color}20);` : ''}">
 					<!-- Exam Time Display -->
-					<div class="text-7xl md:text-8xl font-mono font-bold text-indigo-600 mb-4 leading-none">
+					<div class="text-7xl md:text-8xl font-mono font-bold mb-4 leading-none" style="color: {activeCheckpoint ? activeCheckpoint.color : '#4F46E5'};">
 						{serverTime || 'Loading...'}
 					</div>
 					
@@ -269,6 +706,19 @@
 					{#if timezone}
 						<div class="text-base text-gray-600">
 							{timezone}
+						</div>
+					{/if}
+					
+					<!-- Next Checkpoint Info -->
+					{#if nextCheckpoint}
+						<div class="mt-4 p-3 bg-white bg-opacity-70 rounded-lg">
+							<div class="flex items-center justify-center">
+								<span class="text-lg mr-2">{nextCheckpoint.emoji}</span>
+								<div class="text-sm">
+									<span class="font-medium">Next: {nextCheckpoint.name}</span>
+									<span class="text-gray-600 ml-2">at {nextCheckpoint.time}</span>
+								</div>
+							</div>
 						</div>
 					{/if}
 				</div>
