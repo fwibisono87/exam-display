@@ -10,7 +10,10 @@
 	let is24Hour = false; // Default to 12-hour format
 	let interval: NodeJS.Timeout;
 	let healthInterval: NodeJS.Timeout;
+	let clockInterval: NodeJS.Timeout; // For client-side clock ticking
 	let isHealthCheckInRecoveryMode = false; // Track if we're in rapid health check mode
+	let currentTime: Date | null = null; // Store the current time object for client-side updates
+	let serverTimeOffset = 0; // Offset between server time and client time
 	
 	interface TimeResponse {
 		time: string;
@@ -37,35 +40,51 @@
 			const response = await fetch('/api/time');
 			const data: TimeResponse = await response.json();
 			
-			const date = new Date(data.time);
+			const serverDate = new Date(data.time);
+			const clientDate = new Date();
 			
-			// Separate time and date formatting
-			const timeOnly = date.toLocaleString('en-US', {
-				hour: '2-digit',
-				minute: '2-digit',
-				second: '2-digit',
-				hour12: !is24Hour
-			});
+			// Calculate the offset between server time and client time
+			serverTimeOffset = serverDate.getTime() - clientDate.getTime();
 			
-			const timezoneAbbr = date.toLocaleString('en-US', {
+			// Update the current time and display
+			updateTimeDisplay();
+			
+			// Extract timezone info
+			const timezoneAbbr = serverDate.toLocaleString('en-US', {
 				timeZoneName: 'short'
-			}).split(' ').pop(); // Extract just the timezone abbreviation
+			}).split(' ').pop();
 			
-			const dateOnly = date.toLocaleString('en-US', {
-				weekday: 'long',
-				year: 'numeric',
-				month: 'long',
-				day: 'numeric'
-			});
-			
-			serverTime = timeOnly;
-			serverDate = dateOnly;
 			timezone = `${data.timezone} (${timezoneAbbr})`;
 		} catch (error) {
 			console.error('Error fetching server time:', error);
 			serverTime = 'Error loading time';
 			serverDate = 'Error loading date';
 		}
+	}
+	
+	// Update the time display using current client time + server offset
+	function updateTimeDisplay() {
+		const now = new Date();
+		currentTime = new Date(now.getTime() + serverTimeOffset);
+		
+		// Format time
+		const timeOnly = currentTime.toLocaleString('en-US', {
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hour12: !is24Hour
+		});
+		
+		// Format date
+		const dateOnly = currentTime.toLocaleString('en-US', {
+			weekday: 'long',
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric'
+		});
+		
+		serverTime = timeOnly;
+		serverDate = dateOnly;
 	}
 	
 	async function checkServerHealth() {
@@ -116,7 +135,10 @@
 		fetchServerTime();
 		checkServerHealth();
 		
-		// Update time every 5 minutes (300000ms)
+		// Start client-side clock that updates every second
+		clockInterval = setInterval(updateTimeDisplay, 1000);
+		
+		// Sync with server time every 5 minutes (300000ms)
 		interval = setInterval(fetchServerTime, 300000);
 		
 		// Check health every 10 minutes initially (600000ms)
@@ -126,17 +148,25 @@
 	// Function to toggle time format
 	function toggleTimeFormat() {
 		is24Hour = !is24Hour;
-		fetchServerTime(); // Immediately update the display
+		updateTimeDisplay(); // Immediately update the display with new format
 	}
+	
 	
 	// Manual health check function
 	function manualHealthCheck() {
 		checkServerHealth();
 	}
 	
+	// Force update both time and health check
+	function forceUpdate() {
+		fetchServerTime();
+		checkServerHealth();
+	}
+	
 	onDestroy(() => {
 		if (interval) clearInterval(interval);
 		if (healthInterval) clearInterval(healthInterval);
+		if (clockInterval) clearInterval(clockInterval);
 	});
 </script>
 
@@ -183,7 +213,17 @@
 				
 				<div class="text-sm text-gray-500 flex items-center justify-center space-x-2">
 					<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-					<span>Updates every 5 minutes from server</span>
+					<span>Live clock • Syncs with server every 5 minutes</span>
+				</div>
+				
+				<!-- Force Update Button -->
+				<div class="mt-4">
+					<button 
+						on:click={forceUpdate}
+						class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors text-sm font-medium shadow-md hover:shadow-lg"
+					>
+						Force Update All
+					</button>
 				</div>
 			</div>
 		</div>
