@@ -17,6 +17,7 @@
 	let announcements = ''; // Announcements text for exam setting
 	let isEditingAnnouncements = false; // Toggle for editing mode
 	let showAnnouncements = true; // Toggle for showing/hiding announcements
+	let announcementPosition = 'top'; // 'top' or 'left' - position of announcements
 	let showOperatorSidebar = false; // Toggle for operator controls
 	let customTitle = 'Exam Time Display'; // Customizable title text
 	
@@ -342,7 +343,8 @@
 			final5Time,
 			checkpoints,
 			customCheckpoints,
-			customTitle
+			customTitle,
+			announcementPosition
 		};
 		localStorage.setItem('examSettings', JSON.stringify(settings));
 	}
@@ -358,6 +360,7 @@
 			final15Time = settings.final15Time || '';
 			final5Time = settings.final5Time || '';
 			customTitle = settings.customTitle || 'Exam Time Display';
+			announcementPosition = settings.announcementPosition || 'top';
 			if (settings.checkpoints) checkpoints = settings.checkpoints;
 			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
 		}
@@ -625,6 +628,19 @@
 							</button>
 						</div>
 						
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+							<select
+								bind:value={announcementPosition}
+								on:change={saveExamSettings}
+								class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+							>
+								<option value="top">Above Clock (Traditional)</option>
+								<option value="left">Left Side (For Long Announcements)</option>
+							</select>
+							<p class="text-xs text-gray-500 mt-1">Choose where announcements appear on the display</p>
+						</div>
+						
 						{#if isEditingAnnouncements}
 							<div>
 								<textarea
@@ -696,8 +712,8 @@
 			<h1 class="text-3xl font-bold text-gray-900 mb-2">{customTitle}</h1>
 		</header>
 
-		<!-- Announcements Section - Prominent for Exam Setting -->
-		{#if showAnnouncements && announcements.trim()}
+		<!-- Announcements Section - Top Position -->
+		{#if showAnnouncements && announcements.trim() && announcementPosition === 'top'}
 			<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-lg p-6 mb-8">
 				<div class="flex items-start">
 					<div class="flex-1">
@@ -715,7 +731,34 @@
 				</div>
 			</div>
 		{/if}
-		<!-- Prominent Time Display for Exam -->
+
+		<!-- Main Content Area - Flexible layout for left announcements -->
+		<div class="flex flex-col {announcementPosition === 'left' && showAnnouncements && announcements.trim() ? 'lg:flex-row lg:gap-8' : ''}">
+			<!-- Announcements Section - Left Position -->
+			{#if showAnnouncements && announcements.trim() && announcementPosition === 'left'}
+				<div class="lg:w-1/3 mb-8 lg:mb-0">
+					<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-lg p-6 sticky top-8">
+						<div class="flex items-start">
+							<div class="flex-1">
+								<h2 class="text-xl font-semibold text-yellow-800 mb-3 flex items-center">
+									<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+										<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+									</svg>
+									Announcements
+								</h2>
+								
+								<div class="text-base text-yellow-800 whitespace-pre-line leading-relaxed">
+									{announcements}
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Clock and Status Section -->
+			<div class="flex-1">
+				<!-- Prominent Time Display for Exam -->
 		<div class="bg-white rounded-lg shadow-xl p-8 mb-6">
 			<div class="text-center">
 				<!-- Active Checkpoint Banner -->
@@ -805,6 +848,8 @@
 						Update Now
 					</button>
 				</div>
+				</div>
+			</div>
 			</div>
 		</div>
 	</div>
