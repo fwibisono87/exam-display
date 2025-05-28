@@ -41,9 +41,12 @@
 			const timeOnly = date.toLocaleString('en-US', {
 				hour: '2-digit',
 				minute: '2-digit',
-				second: '2-digit',
-				timeZoneName: 'short'
+				second: '2-digit'
 			});
+			
+			const timezoneAbbr = date.toLocaleString('en-US', {
+				timeZoneName: 'short'
+			}).split(' ').pop(); // Extract just the timezone abbreviation
 			
 			const dateOnly = date.toLocaleString('en-US', {
 				weekday: 'long',
@@ -54,7 +57,7 @@
 			
 			serverTime = timeOnly;
 			serverDate = dateOnly;
-			timezone = data.timezone;
+			timezone = `${data.timezone} (${timezoneAbbr})`;
 		} catch (error) {
 			console.error('Error fetching server time:', error);
 			serverTime = 'Error loading time';
