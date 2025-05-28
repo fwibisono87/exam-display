@@ -10,6 +10,7 @@
 	let is24Hour = false; // Default to 12-hour format
 	let interval: NodeJS.Timeout;
 	let healthInterval: NodeJS.Timeout;
+	let isHealthCheckInRecoveryMode = false; // Track if we're in rapid health check mode
 	
 	interface TimeResponse {
 		time: string;
@@ -74,14 +75,40 @@
 			const endTime = Date.now();
 			const data: HealthResponse = await response.json();
 			
+			const previousHealthStatus = healthStatus;
 			healthStatus = data.status;
 			lastHealthCheck = new Date(data.timestamp).toLocaleTimeString();
 			responseTime = endTime - startTime;
+			
+			// Handle health status changes
+			if (healthStatus === 'healthy' && isHealthCheckInRecoveryMode) {
+				// Server recovered, switch back to normal interval
+				isHealthCheckInRecoveryMode = false;
+				setHealthCheckInterval(600000); // 10 minutes
+			} else if (healthStatus !== 'healthy' && !isHealthCheckInRecoveryMode) {
+				// Server became unhealthy, switch to recovery mode
+				isHealthCheckInRecoveryMode = true;
+				setHealthCheckInterval(30000); // 30 seconds
+			}
 		} catch (error) {
 			console.error('Error checking server health:', error);
+			const previousHealthStatus = healthStatus;
 			healthStatus = 'unhealthy';
 			lastHealthCheck = new Date().toLocaleTimeString();
+			
+			// Switch to recovery mode if not already
+			if (!isHealthCheckInRecoveryMode) {
+				isHealthCheckInRecoveryMode = true;
+				setHealthCheckInterval(30000); // 30 seconds
+			}
 		}
+	}
+	
+	function setHealthCheckInterval(intervalMs: number) {
+		if (healthInterval) {
+			clearInterval(healthInterval);
+		}
+		healthInterval = setInterval(checkServerHealth, intervalMs);
 	}
 	
 	onMount(() => {
@@ -92,14 +119,19 @@
 		// Update time every 5 minutes (300000ms)
 		interval = setInterval(fetchServerTime, 300000);
 		
-		// Check health every 30 seconds
-		healthInterval = setInterval(checkServerHealth, 30000);
+		// Check health every 10 minutes initially (600000ms)
+		healthInterval = setInterval(checkServerHealth, 600000);
 	});
 	
 	// Function to toggle time format
 	function toggleTimeFormat() {
 		is24Hour = !is24Hour;
 		fetchServerTime(); // Immediately update the display
+	}
+	
+	// Manual health check function
+	function manualHealthCheck() {
+		checkServerHealth();
 	}
 	
 	onDestroy(() => {
@@ -181,7 +213,7 @@
 				</div>
 				
 				<button 
-					on:click={checkServerHealth}
+					on:click={manualHealthCheck}
 					class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
 				>
 					Check Now
