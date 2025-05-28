@@ -89,8 +89,8 @@
 		fetchServerTime();
 		checkServerHealth();
 		
-		// Update time every second
-		interval = setInterval(fetchServerTime, 1000);
+		// Update time every 5 minutes (300000ms)
+		interval = setInterval(fetchServerTime, 300000);
 		
 		// Check health every 30 seconds
 		healthInterval = setInterval(checkServerHealth, 30000);
@@ -151,7 +151,7 @@
 				
 				<div class="text-sm text-gray-500 flex items-center justify-center space-x-2">
 					<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-					<span>Updates every second from server</span>
+					<span>Updates every 5 minutes from server</span>
 				</div>
 			</div>
 		</div>
