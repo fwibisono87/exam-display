@@ -7,7 +7,7 @@
 	let healthStatus = 'checking...';
 	let lastHealthCheck = '';
 	let responseTime = 0;
-	let is24Hour = false; // Default to 12-hour format
+	let is24Hour = true; // Default to 24-hour format
 	let interval: NodeJS.Timeout;
 	let healthInterval: NodeJS.Timeout;
 	let clockInterval: NodeJS.Timeout; // For client-side clock ticking
@@ -152,13 +152,8 @@
 	}
 	
 	
-	// Manual health check function
+	// Manual health check function - now also updates time
 	function manualHealthCheck() {
-		checkServerHealth();
-	}
-	
-	// Force update both time and health check
-	function forceUpdate() {
 		fetchServerTime();
 		checkServerHealth();
 	}
@@ -215,16 +210,6 @@
 					<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
 					<span>Live clock • Syncs with server every 5 minutes</span>
 				</div>
-				
-				<!-- Force Update Button -->
-				<div class="mt-4">
-					<button 
-						on:click={forceUpdate}
-						class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors text-sm font-medium shadow-md hover:shadow-lg"
-					>
-						Force Update All
-					</button>
-				</div>
 			</div>
 		</div>
 		
@@ -256,7 +241,7 @@
 					on:click={manualHealthCheck}
 					class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
 				>
-					Check Now
+					Update All
 				</button>
 			</div>
 		</div>
