@@ -167,26 +167,9 @@
 
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
 	<div class="max-w-4xl mx-auto">
-		<header class="text-center mb-12">
-			<h1 class="text-4xl font-bold text-gray-900 mb-4">Server Time Display</h1>
-			<p class="text-lg text-gray-600">Real-time server clock with health monitoring</p>
-		</header>
-		
 		<!-- Prominent Time Display -->
 		<div class="bg-white rounded-lg shadow-xl p-12 mb-8">
 			<div class="text-center">
-				<div class="flex justify-between items-center mb-8">
-					<h2 class="text-3xl font-semibold text-gray-800">Current Server Time</h2>
-					
-					<!-- Time Format Toggle -->
-					<button 
-						on:click={toggleTimeFormat}
-						class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm font-medium border"
-						title="Toggle between 12-hour and 24-hour format"
-					>
-						{is24Hour ? '24H' : '12H'}
-					</button>
-				</div>
 				
 				<div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-12 mb-6">
 					<!-- Prominent Time Display -->
@@ -209,6 +192,13 @@
 				<div class="text-sm text-gray-500 flex items-center justify-center space-x-2">
 					<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
 					<span>Live clock • Syncs with server every 5 minutes</span>
+					<button 
+						on:click={toggleTimeFormat}
+						class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm font-medium border"
+						title="Toggle between 12-hour and 24-hour format"
+					>
+						{is24Hour ? '24H' : '12H'}
+					</button>
 				</div>
 			</div>
 		</div>
@@ -241,7 +231,7 @@
 					on:click={manualHealthCheck}
 					class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
 				>
-					Update All
+					Update Now
 				</button>
 			</div>
 		</div>
