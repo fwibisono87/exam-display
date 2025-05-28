@@ -16,10 +16,7 @@
 	let serverTimeOffset = 0; // Offset between server time and client time
 	let announcements = ''; // Announcements text for exam setting
 	let isEditingAnnouncements = false; // Toggle for editing mode
-<<<<<<< HEAD
-=======
 	let showAnnouncements = true; // Toggle for showing/hiding announcements
->>>>>>> fd7c5f2 (feat: operator announcements)
 	let showOperatorSidebar = false; // Toggle for operator controls
 	
 	// Exam timing settings
