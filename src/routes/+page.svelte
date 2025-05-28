@@ -7,6 +7,7 @@
 	let healthStatus = 'checking...';
 	let lastHealthCheck = '';
 	let responseTime = 0;
+	let is24Hour = false; // Default to 12-hour format
 	let interval: NodeJS.Timeout;
 	let healthInterval: NodeJS.Timeout;
 	
@@ -41,7 +42,8 @@
 			const timeOnly = date.toLocaleString('en-US', {
 				hour: '2-digit',
 				minute: '2-digit',
-				second: '2-digit'
+				second: '2-digit',
+				hour12: !is24Hour
 			});
 			
 			const timezoneAbbr = date.toLocaleString('en-US', {
@@ -94,6 +96,12 @@
 		healthInterval = setInterval(checkServerHealth, 30000);
 	});
 	
+	// Function to toggle time format
+	function toggleTimeFormat() {
+		is24Hour = !is24Hour;
+		fetchServerTime(); // Immediately update the display
+	}
+	
 	onDestroy(() => {
 		if (interval) clearInterval(interval);
 		if (healthInterval) clearInterval(healthInterval);
@@ -110,7 +118,18 @@
 		<!-- Prominent Time Display -->
 		<div class="bg-white rounded-lg shadow-xl p-12 mb-8">
 			<div class="text-center">
-				<h2 class="text-3xl font-semibold text-gray-800 mb-8">Current Server Time</h2>
+				<div class="flex justify-between items-center mb-8">
+					<h2 class="text-3xl font-semibold text-gray-800">Current Server Time</h2>
+					
+					<!-- Time Format Toggle -->
+					<button 
+						on:click={toggleTimeFormat}
+						class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm font-medium border"
+						title="Toggle between 12-hour and 24-hour format"
+					>
+						{is24Hour ? '24H' : '12H'}
+					</button>
+				</div>
 				
 				<div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-12 mb-6">
 					<!-- Prominent Time Display -->
