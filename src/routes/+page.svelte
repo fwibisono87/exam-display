@@ -16,6 +16,10 @@
 	let serverTimeOffset = 0; // Offset between server time and client time
 	let announcements = ''; // Announcements text for exam setting
 	let isEditingAnnouncements = false; // Toggle for editing mode
+<<<<<<< HEAD
+=======
+	let showAnnouncements = true; // Toggle for showing/hiding announcements
+>>>>>>> fd7c5f2 (feat: operator announcements)
 	let showOperatorSidebar = false; // Toggle for operator controls
 	
 	// Exam timing settings
@@ -583,6 +587,59 @@
 					{/if}
 				</div>
 
+				<!-- Announcements Control Section -->
+				<div class="border-t pt-6 mb-8">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Announcements</h3>
+					
+					<div class="space-y-4">
+						<div class="flex items-center justify-between">
+							<label class="flex items-center">
+								<input
+									type="checkbox"
+									bind:checked={showAnnouncements}
+									class="mr-2"
+								/>
+								<span class="text-sm font-medium text-gray-700">Show Announcements</span>
+							</label>
+							<button
+								on:click={toggleAnnouncementsEdit}
+								class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm transition-colors"
+							>
+								{isEditingAnnouncements ? 'Cancel' : 'Edit'}
+							</button>
+						</div>
+						
+						{#if isEditingAnnouncements}
+							<div>
+								<textarea
+									bind:value={announcements}
+									placeholder="Enter announcements for students (e.g., 'Phones must be placed in the front of the room', 'You have 2 hours to complete the exam', etc.)"
+									class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-800"
+									rows="6"
+								></textarea>
+								<button
+									on:click={saveAnnouncements}
+									class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors w-full"
+								>
+									Save Announcements
+								</button>
+							</div>
+						{:else}
+							<div class="p-3 bg-gray-50 rounded-lg border">
+								{#if announcements.trim()}
+									<div class="text-sm text-gray-800 whitespace-pre-line">
+										{announcements}
+									</div>
+								{:else}
+									<div class="text-gray-500 italic text-sm">
+										No announcements set
+									</div>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				</div>
+
 				<!-- Current Status -->
 				{#if activeCheckpoint || nextCheckpoint}
 					<div class="border-t pt-6">
@@ -624,60 +681,24 @@
 		</header>
 
 		<!-- Announcements Section - Prominent for Exam Setting -->
-		<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-lg p-6 mb-8">
-			<div class="flex items-start justify-between">
-				<div class="flex-1">
-					<h2 class="text-xl font-semibold text-yellow-800 mb-3 flex items-center">
-						<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-						</svg>
-						Announcements
-					</h2>
-					
-					{#if isEditingAnnouncements}
-						<textarea
-							bind:value={announcements}
-							placeholder="Enter announcements for students (e.g., 'Phones must be placed in the front of the room', 'You have 2 hours to complete the exam', etc.)"
-							class="w-full p-3 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent resize-none text-gray-800"
-							rows="4"
-						></textarea>
-						<div class="flex space-x-2 mt-3">
-							<button
-								on:click={saveAnnouncements}
-								class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-							>
-								Save
-							</button>
-							<button
-								on:click={toggleAnnouncementsEdit}
-								class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-							>
-								Cancel
-							</button>
+		{#if showAnnouncements && announcements.trim()}
+			<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-lg p-6 mb-8">
+				<div class="flex items-start">
+					<div class="flex-1">
+						<h2 class="text-xl font-semibold text-yellow-800 mb-3 flex items-center">
+							<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+								<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+							</svg>
+							Announcements
+						</h2>
+						
+						<div class="text-lg text-yellow-800 whitespace-pre-line leading-relaxed">
+							{announcements}
 						</div>
-					{:else}
-						{#if announcements.trim()}
-							<div class="text-lg text-yellow-800 whitespace-pre-line leading-relaxed">
-								{announcements}
-							</div>
-						{:else}
-							<div class="text-yellow-700 italic">
-								No announcements - Click "Edit" to add exam instructions or announcements
-							</div>
-						{/if}
-					{/if}
+					</div>
 				</div>
-				
-				{#if !isEditingAnnouncements}
-					<button
-						on:click={toggleAnnouncementsEdit}
-						class="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm transition-colors flex-shrink-0"
-					>
-						Edit
-					</button>
-				{/if}
 			</div>
-		</div>
+		{/if}
 		<!-- Prominent Time Display for Exam -->
 		<div class="bg-white rounded-lg shadow-xl p-8 mb-6">
 			<div class="text-center">
