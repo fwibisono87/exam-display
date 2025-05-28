@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import OperatorSidebar from '$lib/OperatorSidebar.svelte';
+	import AnnouncementsBanner from '$lib/AnnouncementsBanner.svelte';
+	import ExamClock from '$lib/ExamClock.svelte';
+	import SystemStatus from '$lib/SystemStatus.svelte';
 	
 	let serverTime = '';
 	let serverDate = '';
@@ -9,9 +12,9 @@
 	let lastHealthCheck = '';
 	let responseTime = 0;
 	let is24Hour = true; // Default to 24-hour format
-	let interval: NodeJS.Timeout;
-	let healthInterval: NodeJS.Timeout;
-	let clockInterval: NodeJS.Timeout; // For client-side clock ticking
+	let interval: ReturnType<typeof setInterval>;
+	let healthInterval: ReturnType<typeof setInterval>;
+	let clockInterval: ReturnType<typeof setInterval>; // For client-side clock ticking
 	let isHealthCheckInRecoveryMode = false; // Track if we're in rapid health check mode
 	let currentTime: Date | null = null; // Store the current time object for client-side updates
 	let serverTimeOffset = 0; // Offset between server time and client time
@@ -453,143 +456,45 @@
 		</header>
 
 		<!-- Announcements Section - Top Position -->
-		{#if showAnnouncements && announcements.trim() && announcementPosition === 'top'}
-			<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-lg p-6 mb-8">
-				<div class="flex items-start">
-					<div class="flex-1">
-						<h2 class="text-xl font-semibold text-yellow-800 mb-3 flex items-center">
-							<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-								<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-							</svg>
-							Announcements
-						</h2>
-						
-						<div class="text-lg text-yellow-800 whitespace-pre-line leading-relaxed">
-							{announcements}
-						</div>
-					</div>
-				</div>
-			</div>
+		{#if announcementPosition === 'top'}
+			<AnnouncementsBanner 
+				{announcements} 
+				{showAnnouncements} 
+				position="top" 
+			/>
 		{/if}
 
 		<!-- Main Content Area - Flexible layout for left announcements -->
 		<div class="flex flex-col {announcementPosition === 'left' && showAnnouncements && announcements.trim() ? 'lg:flex-row lg:gap-8' : ''}">
 			<!-- Announcements Section - Left Position -->
-			{#if showAnnouncements && announcements.trim() && announcementPosition === 'left'}
+			{#if announcementPosition === 'left'}
 				<div class="lg:w-1/3 mb-8 lg:mb-0">
-					<div class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-lg p-6 sticky top-8">
-						<div class="flex items-start">
-							<div class="flex-1">
-								<h2 class="text-xl font-semibold text-yellow-800 mb-3 flex items-center">
-									<svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-										<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-									</svg>
-									Announcements
-								</h2>
-								
-								<div class="text-base text-yellow-800 whitespace-pre-line leading-relaxed">
-									{announcements}
-								</div>
-							</div>
-						</div>
-					</div>
+					<AnnouncementsBanner 
+						{announcements} 
+						{showAnnouncements} 
+						position="left" 
+					/>
 				</div>
 			{/if}
 
 			<!-- Clock and Status Section -->
 			<div class="flex-1">
-				<!-- Prominent Time Display for Exam -->
-		<div class="bg-white rounded-lg shadow-xl p-8 mb-6">
-			<div class="text-center">
-				<!-- Active Checkpoint Banner -->
-				{#if activeCheckpoint}
-					<div class="mb-6 p-4 rounded-lg flex items-center justify-center" style="background-color: {activeCheckpoint.color}20; border: 2px solid {activeCheckpoint.color};">
-						<span class="text-3xl mr-3">{activeCheckpoint.emoji}</span>
-						<div class="text-left">
-							<div class="text-lg font-bold" style="color: {activeCheckpoint.color};">{activeCheckpoint.name}</div>
-							<div class="text-sm text-gray-600">Active since {activeCheckpoint.time}</div>
-						</div>
-					</div>
-				{/if}
+				<ExamClock 
+					{serverTime}
+					{serverDate}
+					{timezone}
+					{activeCheckpoint}
+					{nextCheckpoint}
+					{is24Hour}
+					on:toggleTimeFormat={toggleTimeFormat}
+				/>
 				
-				<div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-8 mb-4" style="{activeCheckpoint ? `background: linear-gradient(135deg, ${activeCheckpoint.color}10, ${activeCheckpoint.color}20);` : ''}">
-					<!-- Exam Time Display -->
-					<div class="text-7xl md:text-8xl font-mono font-bold mb-4 leading-none" style="color: {activeCheckpoint ? activeCheckpoint.color : '#4F46E5'};">
-						{serverTime || 'Loading...'}
-					</div>
-					
-					<!-- Date Display -->
-					<div class="text-xl md:text-2xl text-gray-700 mb-3 font-medium">
-						{serverDate || ''}
-					</div>
-					
-					{#if timezone}
-						<div class="text-base text-gray-600">
-							{timezone}
-						</div>
-					{/if}
-					
-					<!-- Next Checkpoint Info -->
-					{#if nextCheckpoint}
-						<div class="mt-4 p-3 bg-white bg-opacity-70 rounded-lg">
-							<div class="flex items-center justify-center">
-								<span class="text-lg mr-2">{nextCheckpoint.emoji}</span>
-								<div class="text-sm">
-									<span class="font-medium">Next: {nextCheckpoint.name}</span>
-									<span class="text-gray-600 ml-2">at {nextCheckpoint.time}</span>
-								</div>
-							</div>
-						</div>
-					{/if}
-				</div>
-				
-				<div class="flex items-center justify-center space-x-4 text-sm text-gray-500">
-					<div class="flex items-center space-x-2">
-						<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-						<span>Live clock • Syncs with server every 5 minutes</span>
-					</div>
-					<button 
-						on:click={toggleTimeFormat}
-						class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded-lg transition-colors text-sm font-medium border"
-						title="Toggle between 12-hour and 24-hour format"
-					>
-						{is24Hour ? '24H' : '12H'}
-					</button>
-				</div>
-			</div>
-		</div>
-		
-		<!-- Compact System Status (less prominent for exam setting) -->
-		<div class="bg-white rounded-lg shadow-md p-4">
-			<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-				<div class="flex items-center space-x-3">
-					<h3 class="text-sm font-medium text-gray-700">System Status</h3>
-					<div class="flex items-center space-x-2">
-						<div class="w-2 h-2 rounded-full {healthStatus === 'healthy' ? 'bg-green-500' : 'bg-red-500'}"></div>
-						<span class="text-xs font-medium capitalize {healthStatus === 'healthy' ? 'text-green-700' : 'text-red-700'}">
-							{healthStatus}
-						</span>
-					</div>
-				</div>
-				
-				<div class="flex items-center space-x-4 text-xs text-gray-500">
-					<div>
-						<span class="text-gray-400">Last Check:</span>
-						<span class="font-mono ml-1">{lastHealthCheck}</span>
-					</div>
-					<div>
-						<span class="text-gray-400">Response:</span>
-						<span class="font-mono ml-1">{responseTime}ms</span>
-					</div>
-					<button 
-						on:click={manualHealthCheck}
-						class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs transition-colors"
-					>
-						Update Now
-					</button>
-				</div>
-				</div>
-			</div>
+				<SystemStatus 
+					{healthStatus}
+					{lastHealthCheck}
+					{responseTime}
+					on:updateNow={manualHealthCheck}
+				/>
 			</div>
 		</div>
 	</div>
