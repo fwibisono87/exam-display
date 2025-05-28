@@ -18,6 +18,7 @@
 	let isEditingAnnouncements = false; // Toggle for editing mode
 	let showAnnouncements = true; // Toggle for showing/hiding announcements
 	let showOperatorSidebar = false; // Toggle for operator controls
+	let customTitle = 'Exam Time Display'; // Customizable title text
 	
 	// Exam timing settings
 	let examStartTime = '';
@@ -340,7 +341,8 @@
 			final15Time,
 			final5Time,
 			checkpoints,
-			customCheckpoints
+			customCheckpoints,
+			customTitle
 		};
 		localStorage.setItem('examSettings', JSON.stringify(settings));
 	}
@@ -355,6 +357,7 @@
 			final30Time = settings.final30Time || '';
 			final15Time = settings.final15Time || '';
 			final5Time = settings.final5Time || '';
+			customTitle = settings.customTitle || 'Exam Time Display';
 			if (settings.checkpoints) checkpoints = settings.checkpoints;
 			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
 		}
@@ -393,6 +396,22 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
 						</svg>
 					</button>
+				</div>
+
+				<!-- Display Title Section -->
+				<div class="mb-8">
+					<h3 class="text-lg font-semibold text-gray-800 mb-4">Display Title</h3>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1">Custom Title</label>
+						<input
+							type="text"
+							bind:value={customTitle}
+							on:input={saveExamSettings}
+							placeholder="Enter custom title (e.g., 'Final Exam', 'Quiz Time')"
+							class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						/>
+						<p class="text-xs text-gray-500 mt-1">This will replace "Exam Time Display" in the header</p>
+					</div>
 				</div>
 
 				<!-- Exam Timing Section -->
@@ -674,7 +693,7 @@
 	<div class="max-w-6xl mx-auto {showOperatorSidebar ? 'mr-96' : ''}">
 		<!-- Header for Exam Context -->
 		<header class="text-center mb-8">
-			<h1 class="text-3xl font-bold text-gray-900 mb-2">Exam Time Display</h1>
+			<h1 class="text-3xl font-bold text-gray-900 mb-2">{customTitle}</h1>
 		</header>
 
 		<!-- Announcements Section - Prominent for Exam Setting -->
