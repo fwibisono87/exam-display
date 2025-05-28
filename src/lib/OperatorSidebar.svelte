@@ -29,6 +29,9 @@
 
 	// Event dispatchers for parent component communication
 	import { createEventDispatcher } from 'svelte';
+	import { fly, slide } from 'svelte/transition';
+	import { quintOut, backOut } from 'svelte/easing';
+	
 	const dispatch = createEventDispatcher();
 
 	function saveExamSettings() {
