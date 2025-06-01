@@ -32,6 +32,7 @@
 	let showAnnouncements = true; // Toggle for showing/hiding announcements
 	let announcementPosition = 'top'; // 'top' or 'left' - position of announcements
 	let announcementFontSize = 16; // Font size for announcements in pixels
+	let highContrastMode = false; // High contrast mode for damaged projectors
 	let showOperatorSidebar = false; // Toggle for operator controls
 	let customTitle = 'Exam Time Display'; // Customizable title text
 	let forceNTP = false; // Force accept NTP even with invalid metrics
@@ -382,6 +383,7 @@
 			customTitle,
 			announcementPosition,
 			announcementFontSize,
+			highContrastMode,
 			forceNTP
 		};
 		localStorage.setItem('examSettings', JSON.stringify(settings));
@@ -398,6 +400,7 @@
 		customTitle = 'Exam Time Display';
 		announcementPosition = 'top';
 		announcementFontSize = 16;
+		highContrastMode = false;
 		announcements = '';
 		showAnnouncements = true;
 		isEditingAnnouncements = false;
@@ -436,6 +439,7 @@
 			customTitle = settings.customTitle || 'Exam Time Display';
 			announcementPosition = settings.announcementPosition || 'top';
 			announcementFontSize = settings.announcementFontSize || 16;
+			highContrastMode = settings.highContrastMode || false;
 			forceNTP = settings.forceNTP || false;
 			if (settings.checkpoints) checkpoints = settings.checkpoints;
 			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
@@ -459,11 +463,11 @@
 	}
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 relative">
+<div class="min-h-screen py-8 px-4 relative {highContrastMode ? 'bg-black text-white' : 'bg-gradient-to-br from-blue-50 to-indigo-100'}">
 	<!-- Operator Controls Toggle -->
 	<button
 		on:click={() => showOperatorSidebar = !showOperatorSidebar}
-		class="fixed top-4 right-4 z-50 bg-gray-800 hover:bg-gray-900 text-white p-3 rounded-full shadow-lg transition-colors"
+		class="fixed top-4 right-4 z-50 p-3 rounded-full shadow-lg transition-colors {highContrastMode ? 'bg-white hover:bg-gray-200 text-black border-4 border-yellow-400' : 'bg-gray-800 hover:bg-gray-900 text-white'}"
 		title="Toggle Operator Controls"
 		aria-label="Toggle Operator Controls"
 	>
@@ -485,6 +489,7 @@
 			bind:showAnnouncements
 			bind:announcementPosition
 			bind:announcementFontSize
+			bind:highContrastMode
 			bind:forceNTP
 			{activeCheckpoint}
 			{nextCheckpoint}
@@ -504,7 +509,7 @@
 	<div class="max-w-6xl mx-auto {showOperatorSidebar ? 'mr-96' : ''}">
 		<!-- Header for Exam Context -->
 		<header class="text-center mb-8">
-			<h1 class="text-3xl font-bold text-gray-900 mb-2">{customTitle}</h1>
+			<h1 class="text-3xl font-bold mb-2 {highContrastMode ? 'text-yellow-400' : 'text-gray-900'}">{customTitle}</h1>
 		</header>
 
 		<!-- Announcements Section - Top Position -->
@@ -514,6 +519,7 @@
 				{showAnnouncements} 
 				position="top"
 				fontSize={announcementFontSize}
+				{highContrastMode}
 			/>
 		{/if}
 
@@ -527,6 +533,7 @@
 						{showAnnouncements} 
 						position="left"
 						fontSize={announcementFontSize}
+						{highContrastMode}
 					/>
 				</div>
 			{/if}
@@ -540,6 +547,7 @@
 					{activeCheckpoint}
 					{nextCheckpoint}
 					{is24Hour}
+					{highContrastMode}
 					on:toggleTimeFormat={toggleTimeFormat}
 				/>
 				
@@ -550,6 +558,7 @@
 					{timeSource}
 					{ntpInfo}
 					{forceNTP}
+					{highContrastMode}
 					on:updateNow={manualHealthCheck}
 				/>
 			</div>

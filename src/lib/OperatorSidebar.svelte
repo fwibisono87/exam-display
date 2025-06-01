@@ -25,6 +25,7 @@
 	export let showAnnouncements: boolean;
 	export let announcementPosition: string;
 	export let announcementFontSize: number;
+	export let highContrastMode: boolean;
 	export let forceNTP: boolean;
 	export let activeCheckpoint: any;
 	export let nextCheckpoint: any;
@@ -418,6 +419,19 @@
 						<span>Large (28px)</span>
 					</div>
 					<p class="text-xs text-gray-500 mt-1">Adjust the size of announcement text</p>
+				</div>
+				
+				<div>
+					<label class="flex items-center">
+						<input
+							type="checkbox"
+							bind:checked={highContrastMode}
+							on:change={saveExamSettings}
+							class="mr-2"
+						/>
+						<span class="text-sm font-medium text-gray-700">High Contrast Mode</span>
+					</label>
+					<p class="text-xs text-gray-500 mt-1">Enhanced visibility for damaged projectors and low contrast displays</p>
 				</div>
 				
 				{#if isEditingAnnouncements}

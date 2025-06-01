@@ -6,18 +6,19 @@
 	export let showAnnouncements: boolean;
 	export let position: 'top' | 'left';
 	export let fontSize: number = 16;
+	export let highContrastMode: boolean = false;
 </script>
 
 {#if showAnnouncements && announcements.trim()}
 	<div 
-		class="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg shadow-lg p-4 {position === 'left' ? 'xl:p-4' : 'p-6'} transition-all duration-500 ease-out transform hover:shadow-xl hover:scale-102 {position === 'left' ? 'sticky top-8' : 'mb-8'}"
+		class="rounded-lg shadow-lg p-4 {position === 'left' ? 'xl:p-4' : 'p-6'} transition-all duration-500 ease-out transform hover:shadow-xl hover:scale-102 {position === 'left' ? 'sticky top-8' : 'mb-8'} {highContrastMode ? 'bg-yellow-400 border-4 border-white text-black' : 'bg-yellow-50 border-l-4 border-yellow-400'}"
 		in:fly="{{ y: position === 'top' ? -50 : 0, x: position === 'left' ? -50 : 0, duration: 600, easing: quintOut }}"
 		out:slide="{{ duration: 400, easing: quintOut }}"
 	>
 		<div class="flex items-start">
 			<div class="flex-1 min-w-0">
 				<h2 
-					class="{position === 'left' ? 'text-lg xl:text-xl' : 'text-xl'} font-semibold text-yellow-800 mb-3 flex items-center transition-all duration-300 ease-out"
+					class="{position === 'left' ? 'text-lg xl:text-xl' : 'text-xl'} font-semibold mb-3 flex items-center transition-all duration-300 ease-out {highContrastMode ? 'text-black' : 'text-yellow-800'}"
 					in:fly="{{ y: -10, duration: 400, delay: 200, easing: backOut }}"
 				>
 					<svg 
@@ -31,7 +32,7 @@
 				</h2>
 				
 				<div 
-					class="{position === 'left' ? 'text-sm xl:text-base' : 'text-lg'} text-yellow-800 whitespace-pre-line leading-relaxed transition-all duration-400 ease-out"
+					class="{position === 'left' ? 'text-sm xl:text-base' : 'text-lg'} whitespace-pre-line leading-relaxed transition-all duration-400 ease-out {highContrastMode ? 'text-black font-bold' : 'text-yellow-800'}"
 					style="font-size: {fontSize}px;"
 					in:fly="{{ y: 20, duration: 500, delay: 300, easing: quintOut }}"
 				>
