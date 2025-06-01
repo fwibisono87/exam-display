@@ -141,7 +141,7 @@
 				</button>
 			</div>
 		</div>
-		<div class="text-xs mx-auto">
+		<div class="text-xs mx-auto text-center">
 			Built by <a href="https://www.franciswibisono.com" target="_blank" class="text-blue-600 hover:text-blue-800 transition-colors duration-300">fwibisono87</a>
 			at <a href="https://csl.cs.ui.ac.id" target="_blank" class="text-blue-600 hover:text-blue-800 transition-colors duration-300">Computer Science Lab, Faculty of Computer Science, University of Indonesia</a>
 		</div>
