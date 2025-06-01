@@ -11,6 +11,8 @@
 	let healthStatus = 'checking...';
 	let lastHealthCheck = '';
 	let responseTime = 0;
+	let timeSource = 'local';
+	let ntpInfo: { server?: string; offset?: number; delay?: number } = {};
 	let is24Hour = true; // Default to 24-hour format
 	let interval: ReturnType<typeof setInterval>;
 	let healthInterval: ReturnType<typeof setInterval>;
@@ -59,6 +61,13 @@
 		time: string;
 		timestamp: number;
 		timezone: string;
+		localTime?: string;
+		timeSource?: string;
+		ntp?: {
+			server?: string;
+			offset?: number;
+			delay?: number;
+		};
 		status: string;
 	}
 	
@@ -86,6 +95,10 @@
 			// Calculate the offset between server time and client time
 			serverTimeOffset = serverDate.getTime() - clientDate.getTime();
 			
+			// Update time source and NTP info
+			timeSource = data.timeSource || 'local';
+			ntpInfo = data.ntp || {};
+			
 			// Update the current time and display
 			updateTimeDisplay();
 			
@@ -99,6 +112,8 @@
 			console.error('Error fetching server time:', error);
 			serverTime = 'Error loading time';
 			serverDate = 'Error loading date';
+			timeSource = 'error';
+			ntpInfo = {};
 		}
 	}
 	
@@ -493,6 +508,8 @@
 					{healthStatus}
 					{lastHealthCheck}
 					{responseTime}
+					{timeSource}
+					{ntpInfo}
 					on:updateNow={manualHealthCheck}
 				/>
 			</div>

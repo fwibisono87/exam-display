@@ -10,6 +10,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - TIMEZONE=${TIMEZONE:-UTC}
+      - NTP_SERVER=${NTP_SERVER:-}
     env_file:
       - .env
     restart: unless-stopped
