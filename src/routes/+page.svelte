@@ -13,11 +13,12 @@
 	let responseTime = 0;
 	let timeSource = 'local';
 	let ntpInfo: { 
-		serve	<div class="max-w-7xl mx-auto px-2 xl:px-4 {showOperatorSidebar ? 'mr-96' : ''}">{<div class="max-w-7xl mx-auto px-2 xl:px-4 {showOperatorSidebar ? 'mr-96' : ''}">?: string; 
+		server?: string;
 		offset?: number; 
 		delay?: number; 
 		error?: string; 
 		errorDetails?: string; 
+		hasValidMetrics?: boolean;
 	} = {};
 	let is24Hour = true; // Default to 24-hour format
 	let interval: ReturnType<typeof setInterval>;

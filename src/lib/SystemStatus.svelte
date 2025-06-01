@@ -30,9 +30,9 @@
 			case 'ntp_partial':
 				return { text: 'NTP Time (Est. Metrics)', color: 'text-indigo-700', bgColor: 'bg-indigo-100' };
 			case 'local_fallback':
-				return { text: 'Local (NTP Failed)', color: 'text-orange-700', bgColor: 'bg-orange-100' };
+				return { text: 'Application Server (NTP Failed)', color: 'text-orange-700', bgColor: 'bg-orange-100' };
 			default:
-				return { text: 'application server', color: 'text-gray-700', bgColor: 'bg-gray-100' };
+				return { text: 'Application Server', color: 'text-gray-700', bgColor: 'bg-gray-100' };
 		}
 	}
 	
@@ -142,8 +142,8 @@
 			</div>
 		</div>
 		<div class="text-xs mx-auto">
-			Built by <a href="https://www.franciswibisono.com" target="_blank" class="text-blue">fwibisono87</a>
-			at <a href="https://csl.cs.ui.ac.id" target="_blank" class="text-blue text-underline">Computer Science Lab, Faculty of Computer Science, University of Indonesia</a>
+			Built by <a href="https://www.franciswibisono.com" target="_blank" class="text-blue-600 hover:text-blue-800 transition-colors duration-300">fwibisono87</a>
+			at <a href="https://csl.cs.ui.ac.id" target="_blank" class="text-blue-600 hover:text-blue-800 transition-colors duration-300">Computer Science Lab, Faculty of Computer Science, University of Indonesia</a>
 		</div>
 	</div>
 </div>
