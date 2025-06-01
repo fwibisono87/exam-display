@@ -37,8 +37,20 @@ async function getNTPTime(server: string): Promise<NTPResult | NTPError | null> 
 						details: err.message 
 					});
 				} else {
-					console.log(`NTP sync successful with ${server}: offset=${offset}ms, delay=${delay}ms`);
-					resolve({ time: date, offset, delay });
+					// Log all returned values for debugging
+					console.log(`NTP client returned: date=${date}, offset=${offset}, delay=${delay}, types: date=${typeof date}, offset=${typeof offset}, delay=${typeof delay}`);
+					
+					// Validate that we received proper values
+					if (!date || typeof offset !== 'number' || typeof delay !== 'number' || isNaN(offset) || isNaN(delay)) {
+						console.warn(`NTP sync returned invalid data from ${server}: date=${date}, offset=${offset}, delay=${delay}`);
+						resolve({ 
+							error: 'invalid_response', 
+							details: `Server returned invalid data: date=${date}, offset=${offset} (${typeof offset}), delay=${delay} (${typeof delay})` 
+						});
+					} else {
+						console.log(`NTP sync successful with ${server}: offset=${offset}ms, delay=${delay}ms`);
+						resolve({ time: date, offset, delay });
+					}
 				}
 			});
 		});
@@ -68,9 +80,14 @@ export const GET: RequestHandler = async () => {
 	
 	// Try to get time from NTP server if configured
 	if (ntpServer) {
+		console.log(`Attempting NTP sync with server: ${ntpServer}`);
 		const ntpResult = await getNTPTime(ntpServer);
-		if (ntpResult && 'time' in ntpResult) {
+		
+		console.log(`NTP result:`, ntpResult);
+		
+		if (ntpResult && 'time' in ntpResult && ntpResult.time) {
 			// Successful NTP sync
+			console.log(`Using NTP time from ${ntpServer}`);
 			serverTime = ntpResult.time;
 			timeSource = 'ntp';
 			ntpInfo = {
@@ -78,18 +95,30 @@ export const GET: RequestHandler = async () => {
 				offset: Math.round(ntpResult.offset),
 				delay: Math.round(ntpResult.delay)
 			};
-		} else {
+		} else if (ntpResult && 'error' in ntpResult) {
 			// NTP failed with error information
+			console.warn(`NTP sync failed, falling back to local time. Error: ${ntpResult.error}, Details: ${ntpResult.details}`);
 			serverTime = new Date();
 			timeSource = 'local_fallback';
 			ntpInfo = { 
 				server: ntpServer,
-				error: ntpResult?.error || 'unknown',
-				errorDetails: ntpResult?.details || 'NTP sync failed'
+				error: ntpResult.error,
+				errorDetails: ntpResult.details
+			};
+		} else {
+			// Unexpected result
+			console.warn(`NTP sync returned unexpected result:`, ntpResult);
+			serverTime = new Date();
+			timeSource = 'local_fallback';
+			ntpInfo = { 
+				server: ntpServer,
+				error: 'unexpected_result',
+				errorDetails: `NTP client returned unexpected result: ${JSON.stringify(ntpResult)}`
 			};
 		}
 	} else {
 		// Use application server time
+		console.log('No NTP server configured, using local time');
 		serverTime = new Date();
 	}
 	
@@ -112,6 +141,11 @@ export const GET: RequestHandler = async () => {
 		localTime: timeInTimezone,
 		timeSource,
 		ntp: ntpInfo,
-		status: 'healthy'
+		status: 'healthy',
+		debug: {
+			ntpServerConfigured: !!ntpServer,
+			ntpServerValue: ntpServer || null,
+			serverTimeSource: serverTime.constructor.name
+		}
 	});
 };
