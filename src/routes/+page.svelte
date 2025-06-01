@@ -12,7 +12,13 @@
 	let lastHealthCheck = '';
 	let responseTime = 0;
 	let timeSource = 'local';
-	let ntpInfo: { server?: string; offset?: number; delay?: number } = {};
+	let ntpInfo: { 
+		server?: string; 
+		offset?: number; 
+		delay?: number; 
+		error?: string; 
+		errorDetails?: string; 
+	} = {};
 	let is24Hour = true; // Default to 24-hour format
 	let interval: ReturnType<typeof setInterval>;
 	let healthInterval: ReturnType<typeof setInterval>;
@@ -67,6 +73,8 @@
 			server?: string;
 			offset?: number;
 			delay?: number;
+			error?: string;
+			errorDetails?: string;
 		};
 		status: string;
 	}

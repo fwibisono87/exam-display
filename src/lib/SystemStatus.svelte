@@ -7,7 +7,13 @@
 	export let lastHealthCheck: string;
 	export let responseTime: number;
 	export let timeSource: string = 'local';
-	export let ntpInfo: { server?: string; offset?: number; delay?: number } = {};
+	export let ntpInfo: { 
+		server?: string; 
+		offset?: number; 
+		delay?: number; 
+		error?: string; 
+		errorDetails?: string; 
+	} = {};
 
 	const dispatch = createEventDispatcher();
 
@@ -22,7 +28,7 @@
 			case 'local_fallback':
 				return { text: 'Local (NTP Failed)', color: 'text-orange-700', bgColor: 'bg-orange-100' };
 			default:
-				return { text: 'Local Server', color: 'text-gray-700', bgColor: 'bg-gray-100' };
+				return { text: 'application server', color: 'text-gray-700', bgColor: 'bg-gray-100' };
 		}
 	}
 	
@@ -31,9 +37,13 @@
 			case 'ntp':
 				return ntpInfo.server ? `Synced with ${ntpInfo.server}` : 'Using NTP synchronization';
 			case 'local_fallback':
-				return ntpInfo.server ? `NTP sync failed with ${ntpInfo.server}, using local time` : 'NTP sync failed, using local time';
+				if (ntpInfo.server) {
+					const errorInfo = ntpInfo.errorDetails ? ` (${ntpInfo.errorDetails})` : '';
+					return `NTP sync failed with ${ntpInfo.server}${errorInfo}, using local time`;
+				}
+				return 'NTP sync failed, using local time';
 			default:
-				return 'Using local server time';
+				return 'Using application server time';
 		}
 	}
 	
@@ -100,11 +110,21 @@
 					<span class="font-mono ml-1">{ntpInfo.offset}ms/{ntpInfo.delay}ms</span>
 				</div>
 			{/if}
+			{#if timeSource === 'local_fallback' && ntpInfo.error}
+				<div 
+					class="transition-all duration-300 ease-out hover:text-red-600"
+					title={ntpInfo.errorDetails || 'NTP synchronization failed'}
+				>
+					<span class="text-red-400">NTP Error:</span>
+					<span class="font-mono ml-1 text-red-500">{ntpInfo.error}</span>
+				</div>
+			{/if}
 			<button 
 				on:click={updateNow}
 				class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-xs transition-all duration-200 ease-out transform hover:scale-105 active:scale-95 hover:shadow-md"
+				title={timeSource === 'local_fallback' ? 'Update time and retry NTP sync' : 'Update time from server'}
 			>
-				Update Now
+				{timeSource === 'local_fallback' ? 'Retry NTP' : 'Update Now'}
 			</button>
 		</div>
 	</div>
