@@ -13,7 +13,7 @@
 	let responseTime = 0;
 	let timeSource = 'local';
 	let ntpInfo: { 
-		server?: string; 
+		serve	<div class="max-w-7xl mx-auto px-2 xl:px-4 {showOperatorSidebar ? 'mr-96' : ''}">{<div class="max-w-7xl mx-auto px-2 xl:px-4 {showOperatorSidebar ? 'mr-96' : ''}">?: string; 
 		offset?: number; 
 		delay?: number; 
 		error?: string; 
@@ -511,10 +511,10 @@
 		{/if}
 
 		<!-- Main Content Area - Flexible layout for left announcements -->
-		<div class="flex flex-col {announcementPosition === 'left' && showAnnouncements && announcements.trim() ? 'lg:flex-row lg:gap-8' : ''}">
+		<div class="flex flex-col {announcementPosition === 'left' && showAnnouncements && announcements.trim() ? 'xl:flex-row xl:gap-6' : ''}">
 			<!-- Announcements Section - Left Position -->
 			{#if announcementPosition === 'left'}
-				<div class="lg:w-1/3 mb-8 lg:mb-0">
+				<div class="xl:w-80 xl:max-w-80 mb-6 xl:mb-0 xl:flex-shrink-0">
 					<AnnouncementsBanner 
 						{announcements} 
 						{showAnnouncements} 
@@ -524,7 +524,7 @@
 			{/if}
 
 			<!-- Clock and Status Section -->
-			<div class="flex-1">
+			<div class="flex-1 xl:min-w-0">
 				<ExamClock 
 					{serverTime}
 					{serverDate}

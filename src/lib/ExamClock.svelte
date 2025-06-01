@@ -29,7 +29,7 @@
 		>
 			<!-- Exam Time Display -->
 			<div 
-				class="text-7xl md:text-8xl font-mono font-bold mb-4 leading-none transition-all duration-500 ease-out transform hover:scale-105" 
+				class="text-5xl md:text-6xl xl:text-7xl 2xl:text-8xl font-mono font-bold mb-4 leading-none transition-all duration-500 ease-out transform hover:scale-105" 
 				style="color: {activeCheckpoint ? activeCheckpoint.color : '#4F46E5'};"
 				in:fly="{{ y: -20, duration: 600, easing: quintOut }}"
 			>
@@ -38,7 +38,7 @@
 			
 			<!-- Date Display -->
 			<div 
-				class="text-xl md:text-2xl text-gray-700 mb-3 font-medium transition-all duration-300 ease-out"
+				class="text-lg md:text-xl xl:text-2xl text-gray-700 mb-3 font-medium transition-all duration-300 ease-out"
 				in:fade="{{ delay: 200, duration: 400 }}"
 			>
 				{serverDate || ''}
