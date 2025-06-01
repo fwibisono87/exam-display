@@ -32,6 +32,7 @@
 	let announcementPosition = 'top'; // 'top' or 'left' - position of announcements
 	let showOperatorSidebar = false; // Toggle for operator controls
 	let customTitle = 'Exam Time Display'; // Customizable title text
+	let forceNTP = false; // Force accept NTP even with invalid metrics
 	
 	// Exam timing settings
 	let examStartTime = '';
@@ -75,6 +76,7 @@
 			delay?: number;
 			error?: string;
 			errorDetails?: string;
+			hasValidMetrics?: boolean;
 		};
 		status: string;
 	}
@@ -106,6 +108,11 @@
 			// Update time source and NTP info
 			timeSource = data.timeSource || 'local';
 			ntpInfo = data.ntp || {};
+			
+			// Apply force NTP override if enabled
+			if (forceNTP && timeSource === 'ntp_partial') {
+				timeSource = 'ntp';
+			}
 			
 			// Update the current time and display
 			updateTimeDisplay();
@@ -371,7 +378,8 @@
 			checkpoints,
 			customCheckpoints,
 			customTitle,
-			announcementPosition
+			announcementPosition,
+			forceNTP
 		};
 		localStorage.setItem('examSettings', JSON.stringify(settings));
 	}
@@ -389,6 +397,7 @@
 		announcements = '';
 		showAnnouncements = true;
 		isEditingAnnouncements = false;
+		forceNTP = false;
 		
 		// Reset checkpoints to defaults
 		checkpoints = [
@@ -422,6 +431,7 @@
 			final5Time = settings.final5Time || '';
 			customTitle = settings.customTitle || 'Exam Time Display';
 			announcementPosition = settings.announcementPosition || 'top';
+			forceNTP = settings.forceNTP || false;
 			if (settings.checkpoints) checkpoints = settings.checkpoints;
 			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
 		}
@@ -432,6 +442,16 @@
 		if (healthInterval) clearInterval(healthInterval);
 		if (clockInterval) clearInterval(clockInterval);
 	});
+	
+	// Reactive statement to update time source when forceNTP changes
+	$: if (timeSource === 'ntp_partial' && forceNTP) {
+		timeSource = 'ntp';
+		saveExamSettings();
+	} else if (timeSource === 'ntp' && !forceNTP && ntpInfo.hasValidMetrics === false) {
+		// Only revert to ntp_partial if the metrics are actually invalid
+		timeSource = 'ntp_partial';
+		saveExamSettings();
+	}
 </script>
 
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4 relative">
@@ -459,8 +479,11 @@
 			bind:isEditingAnnouncements
 			bind:showAnnouncements
 			bind:announcementPosition
+			bind:forceNTP
 			{activeCheckpoint}
 			{nextCheckpoint}
+			{timeSource}
+			{ntpInfo}
 			on:saveSettings={saveExamSettings}
 			on:calculateCheckpoints={calculateCheckpointTimes}
 			on:addCustomCheckpoint={addCustomCheckpoint}
@@ -518,6 +541,7 @@
 					{responseTime}
 					{timeSource}
 					{ntpInfo}
+					{forceNTP}
 					on:updateNow={manualHealthCheck}
 				/>
 			</div>

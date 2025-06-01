@@ -6,6 +6,7 @@ interface NTPResult {
 	time: Date;
 	offset: number;
 	delay: number;
+	hasValidMetrics?: boolean;
 }
 
 interface NTPError {
@@ -40,16 +41,30 @@ async function getNTPTime(server: string): Promise<NTPResult | NTPError | null> 
 					// Log all returned values for debugging
 					console.log(`NTP client returned: date=${date}, offset=${offset}, delay=${delay}, types: date=${typeof date}, offset=${typeof offset}, delay=${typeof delay}`);
 					
-					// Validate that we received proper values
-					if (!date || typeof offset !== 'number' || typeof delay !== 'number' || isNaN(offset) || isNaN(delay)) {
-						console.warn(`NTP sync returned invalid data from ${server}: date=${date}, offset=${offset}, delay=${delay}`);
+					// Validate that we at least received a valid date
+					if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+						console.warn(`NTP sync returned invalid date from ${server}: date=${date}`);
 						resolve({ 
-							error: 'invalid_response', 
-							details: `Server returned invalid data: date=${date}, offset=${offset} (${typeof offset}), delay=${delay} (${typeof delay})` 
+							error: 'invalid_date', 
+							details: `Server returned invalid date: ${date} (type: ${typeof date})` 
 						});
 					} else {
-						console.log(`NTP sync successful with ${server}: offset=${offset}ms, delay=${delay}ms`);
-						resolve({ time: date, offset, delay });
+						// We have a valid date, use it even if offset/delay are undefined
+						const validOffset = (typeof offset === 'number' && !isNaN(offset)) ? offset : 0;
+						const validDelay = (typeof delay === 'number' && !isNaN(delay)) ? delay : 0;
+						
+						if (typeof offset !== 'number' || typeof delay !== 'number' || isNaN(offset) || isNaN(delay)) {
+							console.warn(`NTP sync from ${server} returned valid date but invalid offset/delay. Using date anyway. offset=${offset}, delay=${delay}`);
+						} else {
+							console.log(`NTP sync successful with ${server}: offset=${offset}ms, delay=${delay}ms`);
+						}
+						
+						resolve({ 
+							time: date, 
+							offset: validOffset, 
+							delay: validDelay,
+							hasValidMetrics: (typeof offset === 'number' && !isNaN(offset) && typeof delay === 'number' && !isNaN(delay))
+						});
 					}
 				}
 			});
@@ -75,7 +90,8 @@ export const GET: RequestHandler = async () => {
 		offset?: number; 
 		delay?: number; 
 		error?: string; 
-		errorDetails?: string; 
+		errorDetails?: string;
+		hasValidMetrics?: boolean;
 	} = {};
 	
 	// Try to get time from NTP server if configured
@@ -89,12 +105,17 @@ export const GET: RequestHandler = async () => {
 			// Successful NTP sync
 			console.log(`Using NTP time from ${ntpServer}`);
 			serverTime = ntpResult.time;
-			timeSource = 'ntp';
+			timeSource = ntpResult.hasValidMetrics ? 'ntp' : 'ntp_partial';
 			ntpInfo = {
 				server: ntpServer,
 				offset: Math.round(ntpResult.offset),
-				delay: Math.round(ntpResult.delay)
+				delay: Math.round(ntpResult.delay),
+				hasValidMetrics: ntpResult.hasValidMetrics
 			};
+			
+			if (!ntpResult.hasValidMetrics) {
+				console.warn(`NTP time obtained but metrics are estimated/invalid`);
+			}
 		} else if (ntpResult && 'error' in ntpResult) {
 			// NTP failed with error information
 			console.warn(`NTP sync failed, falling back to local time. Error: ${ntpResult.error}, Details: ${ntpResult.details}`);

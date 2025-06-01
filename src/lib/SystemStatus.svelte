@@ -13,7 +13,9 @@
 		delay?: number; 
 		error?: string; 
 		errorDetails?: string; 
+		hasValidMetrics?: boolean;
 	} = {};
+	export let forceNTP: boolean = false;
 
 	const dispatch = createEventDispatcher();
 
@@ -25,6 +27,8 @@
 		switch(timeSource) {
 			case 'ntp':
 				return { text: 'NTP Sync', color: 'text-blue-700', bgColor: 'bg-blue-100' };
+			case 'ntp_partial':
+				return { text: 'NTP Time (Est. Metrics)', color: 'text-indigo-700', bgColor: 'bg-indigo-100' };
 			case 'local_fallback':
 				return { text: 'Local (NTP Failed)', color: 'text-orange-700', bgColor: 'bg-orange-100' };
 			default:
@@ -35,7 +39,13 @@
 	function getTimeSourceTooltip() {
 		switch(timeSource) {
 			case 'ntp':
-				return ntpInfo.server ? `Synced with ${ntpInfo.server}` : 'Using NTP synchronization';
+				const baseTooltip = ntpInfo.server ? `Synced with ${ntpInfo.server}` : 'Using NTP synchronization';
+				if (forceNTP && ntpInfo.hasValidMetrics === false) {
+					return `${baseTooltip} (Force NTP enabled - treating partial sync as full sync)`;
+				}
+				return baseTooltip;
+			case 'ntp_partial':
+				return ntpInfo.server ? `Time from ${ntpInfo.server} (offset/delay metrics unavailable)` : 'Using NTP time with estimated metrics';
 			case 'local_fallback':
 				if (ntpInfo.server) {
 					const errorInfo = ntpInfo.errorDetails ? ` (${ntpInfo.errorDetails})` : '';
@@ -80,6 +90,8 @@
 			>
 				{#if timeSource === 'ntp'}
 					<span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
+				{:else if timeSource === 'ntp_partial'}
+					<span class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></span>
 				{:else if timeSource === 'local_fallback'}
 					<span class="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
 				{:else}
@@ -101,13 +113,13 @@
 				<span class="text-gray-400">Response:</span>
 				<span class="font-mono ml-1">{responseTime}ms</span>
 			</div>
-			{#if timeSource === 'ntp' && ntpInfo.offset !== undefined}
+			{#if (timeSource === 'ntp' || timeSource === 'ntp_partial') && ntpInfo.offset !== undefined}
 				<div 
 					class="transition-all duration-300 ease-out hover:text-gray-700"
-					title="NTP offset and delay in milliseconds"
+					title="NTP offset and delay in milliseconds{timeSource === 'ntp_partial' ? ' (estimated values)' : ''}"
 				>
 					<span class="text-gray-400">NTP:</span>
-					<span class="font-mono ml-1">{ntpInfo.offset}ms/{ntpInfo.delay}ms</span>
+					<span class="font-mono ml-1">{ntpInfo.offset}ms/{ntpInfo.delay}ms{timeSource === 'ntp_partial' ? '*' : ''}</span>
 				</div>
 			{/if}
 			{#if timeSource === 'local_fallback' && ntpInfo.error}

@@ -24,8 +24,18 @@
 	export let isEditingAnnouncements: boolean;
 	export let showAnnouncements: boolean;
 	export let announcementPosition: string;
+	export let forceNTP: boolean;
 	export let activeCheckpoint: any;
 	export let nextCheckpoint: any;
+	export let timeSource: string;
+	export let ntpInfo: { 
+		server?: string; 
+		offset?: number; 
+		delay?: number; 
+		error?: string; 
+		errorDetails?: string; 
+		hasValidMetrics?: boolean;
+	};
 
 	// Event dispatchers for parent component communication
 	import { createEventDispatcher } from 'svelte';
@@ -100,6 +110,61 @@
 				<p class="text-xs text-gray-500 mt-1">This will replace "Exam Time Display" in the header</p>
 			</div>
 		</div>
+
+		<!-- NTP Force Override Section -->
+		{#if timeSource === 'ntp_partial' || (ntpInfo.server && !ntpInfo.hasValidMetrics)}
+			<div class="mb-8 border border-indigo-200 rounded-lg p-4 bg-indigo-50">
+				<h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+					<span class="mr-2">🔧</span>
+					NTP Override
+				</h3>
+				
+				<div class="mb-4">
+					<div class="flex items-center justify-between p-3 bg-white rounded-lg border border-indigo-200">
+						<div class="flex items-center">
+							<div class="w-3 h-3 bg-indigo-500 rounded-full animate-pulse mr-3"></div>
+							<div>
+								<div class="font-medium text-gray-800">NTP Time with Estimated Metrics</div>
+								<div class="text-sm text-gray-600">
+									Server: {ntpInfo.server || 'Unknown'} 
+									{#if ntpInfo.offset !== undefined}• Offset: {ntpInfo.offset}ms (estimated){/if}
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="space-y-3">
+					<label class="flex items-start">
+						<input
+							type="checkbox"
+							bind:checked={forceNTP}
+							on:change={saveExamSettings}
+							class="mt-1 mr-3"
+						/>
+						<div>
+							<span class="font-medium text-gray-700">Force Accept NTP Time</span>
+							<p class="text-sm text-gray-600 mt-1">
+								When enabled, treats NTP time as fully trusted even when offset/delay metrics are unavailable. 
+								This will display as "NTP Sync" instead of "NTP Time (Est. Metrics)".
+							</p>
+						</div>
+					</label>
+					
+					{#if forceNTP}
+						<div class="p-3 bg-green-50 border border-green-200 rounded-lg">
+							<div class="flex items-center text-green-800">
+								<span class="mr-2">✅</span>
+								<span class="font-medium">Force NTP Active</span>
+							</div>
+							<p class="text-sm text-green-700 mt-1">
+								The system will treat the current NTP partial sync as a full sync for display purposes.
+							</p>
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/if}
 
 		<!-- Exam Timing Section -->
 		<div class="mb-8">
