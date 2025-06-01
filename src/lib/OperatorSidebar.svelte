@@ -24,6 +24,7 @@
 	export let isEditingAnnouncements: boolean;
 	export let showAnnouncements: boolean;
 	export let announcementPosition: string;
+	export let announcementFontSize: number;
 	export let forceNTP: boolean;
 	export let activeCheckpoint: any;
 	export let nextCheckpoint: any;
@@ -397,6 +398,26 @@
 						<option value="left">Left Side (For Long Announcements)</option>
 					</select>
 					<p class="text-xs text-gray-500 mt-1">Choose where announcements appear on the display</p>
+				</div>
+				
+				<div>
+					<label for="announcement-font-size" class="block text-sm font-medium text-gray-700 mb-2">Font Size</label>
+					<input
+						id="announcement-font-size"
+						type="range"
+						min="12"
+						max="28"
+						step="1"
+						bind:value={announcementFontSize}
+						on:input={saveExamSettings}
+						class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+					/>
+					<div class="flex justify-between text-xs text-gray-500 mt-1">
+						<span>Small (12px)</span>
+						<span class="font-medium">{announcementFontSize}px</span>
+						<span>Large (28px)</span>
+					</div>
+					<p class="text-xs text-gray-500 mt-1">Adjust the size of announcement text</p>
 				</div>
 				
 				{#if isEditingAnnouncements}

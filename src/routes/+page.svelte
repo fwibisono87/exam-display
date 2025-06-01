@@ -31,6 +31,7 @@
 	let isEditingAnnouncements = false; // Toggle for editing mode
 	let showAnnouncements = true; // Toggle for showing/hiding announcements
 	let announcementPosition = 'top'; // 'top' or 'left' - position of announcements
+	let announcementFontSize = 16; // Font size for announcements in pixels
 	let showOperatorSidebar = false; // Toggle for operator controls
 	let customTitle = 'Exam Time Display'; // Customizable title text
 	let forceNTP = false; // Force accept NTP even with invalid metrics
@@ -380,6 +381,7 @@
 			customCheckpoints,
 			customTitle,
 			announcementPosition,
+			announcementFontSize,
 			forceNTP
 		};
 		localStorage.setItem('examSettings', JSON.stringify(settings));
@@ -395,6 +397,7 @@
 		final5Time = '';
 		customTitle = 'Exam Time Display';
 		announcementPosition = 'top';
+		announcementFontSize = 16;
 		announcements = '';
 		showAnnouncements = true;
 		isEditingAnnouncements = false;
@@ -432,6 +435,7 @@
 			final5Time = settings.final5Time || '';
 			customTitle = settings.customTitle || 'Exam Time Display';
 			announcementPosition = settings.announcementPosition || 'top';
+			announcementFontSize = settings.announcementFontSize || 16;
 			forceNTP = settings.forceNTP || false;
 			if (settings.checkpoints) checkpoints = settings.checkpoints;
 			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
@@ -480,6 +484,7 @@
 			bind:isEditingAnnouncements
 			bind:showAnnouncements
 			bind:announcementPosition
+			bind:announcementFontSize
 			bind:forceNTP
 			{activeCheckpoint}
 			{nextCheckpoint}
@@ -507,7 +512,8 @@
 			<AnnouncementsBanner 
 				{announcements} 
 				{showAnnouncements} 
-				position="top" 
+				position="top"
+				fontSize={announcementFontSize}
 			/>
 		{/if}
 
@@ -519,7 +525,8 @@
 					<AnnouncementsBanner 
 						{announcements} 
 						{showAnnouncements} 
-						position="left" 
+						position="left"
+						fontSize={announcementFontSize}
 					/>
 				</div>
 			{/if}

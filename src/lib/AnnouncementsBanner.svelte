@@ -5,6 +5,7 @@
 	export let announcements: string;
 	export let showAnnouncements: boolean;
 	export let position: 'top' | 'left';
+	export let fontSize: number = 16;
 </script>
 
 {#if showAnnouncements && announcements.trim()}
@@ -31,6 +32,7 @@
 				
 				<div 
 					class="{position === 'left' ? 'text-sm xl:text-base' : 'text-lg'} text-yellow-800 whitespace-pre-line leading-relaxed transition-all duration-400 ease-out"
+					style="font-size: {fontSize}px;"
 					in:fly="{{ y: 20, duration: 500, delay: 300, easing: quintOut }}"
 				>
 					{announcements}
