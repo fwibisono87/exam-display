@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: exam-display-config
+  labels:
+    app: exam-display
+data:
+  NTP_SERVER: "ntp.ui.ac.id"
+  TIMEZONE: "Asia/Jakarta"
+  NODE_ENV: "production"
