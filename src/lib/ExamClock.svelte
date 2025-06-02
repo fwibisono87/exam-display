@@ -1,6 +1,6 @@
 <script lang="ts">
 	import CheckpointBanner from './CheckpointBanner.svelte';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount, onDestroy, afterUpdate } from 'svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
 
@@ -11,6 +11,67 @@
 	export let activeCheckpoint: any;
 	export let nextCheckpoint: any;
 	export let highContrastMode: boolean = false;
+	export let showDate: boolean = false;
+	export let showTimezone: boolean = false;
+
+	// Reference to the time element and its container
+	let timeElement: HTMLElement;
+	let containerElement: HTMLElement;
+	let fontSize: number = 0;
+	let containerWidth: number = 0;
+	
+	// Coefficient to control how aggressively the font size fills the container
+	// Higher values = larger font (can be adjusted as needed)
+	const FONT_SIZE_COEFFICIENT = 0.65;
+	const MAX_FONT_SIZE = 320; // Maximum font size in pixels
+	const MIN_FONT_SIZE = 60;  // Minimum font size in pixels
+	
+	// Function to adjust font size based on container width and time length
+	function adjustFontSize() {
+		if (!timeElement || !containerElement) return;
+		
+		// Get the width of the container
+		containerWidth = containerElement.clientWidth;
+		const containerHeight = window.innerHeight * 0.4; // Use ~40% of viewport height
+		
+		// Calculate optimal font size based on container width and text length
+		// The longer the time string, the smaller the font should be
+		const contentLength = serverTime?.length || 5;
+		
+		// Calculate based on width
+		let widthBasedSize = (containerWidth / contentLength) * FONT_SIZE_COEFFICIENT;
+		
+		// Also consider height to prevent overflow
+		let heightBasedSize = containerHeight * 0.9; // Leave some margin
+		
+		// Take the smaller of the two to ensure fitting in both dimensions
+		fontSize = Math.min(widthBasedSize, heightBasedSize);
+		
+		// Apply constraints
+		fontSize = Math.min(Math.max(fontSize, MIN_FONT_SIZE), MAX_FONT_SIZE);
+		
+		// Apply the calculated font size
+		timeElement.style.fontSize = `${fontSize}px`;
+	}
+	
+	// Set up the resize observer and event listeners
+	onMount(() => {
+		// Initial size adjustment
+		adjustFontSize();
+		
+		// Add resize event listener
+		window.addEventListener('resize', adjustFontSize);
+	});
+	
+	// Clean up event listeners when component is destroyed
+	onDestroy(() => {
+		window.removeEventListener('resize', adjustFontSize);
+	});
+	
+	// Adjust size when the time changes
+	afterUpdate(() => {
+		adjustFontSize();
+	});
 
 	const dispatch = createEventDispatcher();
 
@@ -25,12 +86,14 @@
 	
 	<!-- Full Width Time Display -->
 	<div 
+		bind:this={containerElement}
 		class="w-full py-4 transition-all duration-700 ease-out {highContrastMode ? 'bg-black' : ''}" 
 		style="{activeCheckpoint && !highContrastMode ? `background: linear-gradient(135deg, ${activeCheckpoint.color}10, ${activeCheckpoint.color}20);` : ''}"
 	>
-		<!-- Exam Time Display - Maximized -->
+		<!-- Exam Time Display - Adaptive Size -->
 		<div 
-			class="text-9xl sm:text-[12rem] md:text-[16rem] lg:text-[20rem] xl:text-[24rem] 2xl:text-[28rem] font-mono font-bold mb-2 leading-none transition-all duration-500 ease-out w-full" 
+			bind:this={timeElement}
+			class="font-mono font-bold mb-2 leading-none transition-all duration-500 ease-out w-full text-center"
 			style="color: {highContrastMode ? '#FFFF00' : (activeCheckpoint ? activeCheckpoint.color : '#4F46E5')};"
 			in:fly="{{ y: -20, duration: 600, easing: quintOut }}"
 		>
@@ -38,20 +101,24 @@
 		</div>
 		
 		<!-- Date Display -->
-		<div 
-			class="text-2xl md:text-3xl lg:text-4xl xl:text-5xl mb-2 font-medium transition-all duration-300 ease-out {highContrastMode ? 'text-white font-bold' : 'text-gray-700'}"
-			in:fade="{{ delay: 200, duration: 400 }}"
-		>
-			{serverDate || ''}
-		</div>
-		
-		{#if timezone}
+		{#if showDate}
 			<div 
-				class="text-xl md:text-2xl lg:text-3xl transition-all duration-300 ease-out {highContrastMode ? 'text-gray-300 font-bold' : 'text-gray-600'}"
-				in:fade="{{ delay: 300, duration: 400 }}"
+				class="text-2xl md:text-3xl lg:text-4xl xl:text-5xl mb-2 font-medium transition-all duration-300 ease-out {highContrastMode ? 'text-white font-bold' : 'text-gray-700'}"
+				in:fade="{{ delay: 200, duration: 400 }}"
 			>
-				{timezone}
+				{serverDate || ''}
 			</div>
+		{/if}
+		
+		{#if showTimezone}
+			{#if timezone}
+				<div 
+					class="text-xl md:text-2xl lg:text-3xl transition-all duration-300 ease-out {highContrastMode ? 'text-gray-300 font-bold' : 'text-gray-600'}"
+					in:fade="{{ delay: 300, duration: 400 }}"
+				>
+					{timezone}
+				</div>
+			{/if}
 		{/if}
 		
 		<!-- Next Checkpoint Info -->

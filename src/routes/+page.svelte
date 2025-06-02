@@ -36,6 +36,8 @@
 	let showOperatorSidebar = false; // Toggle for operator controls
 	let customTitle = 'Exam Time Display'; // Customizable title text
 	let forceNTP = false; // Force accept NTP even with invalid metrics
+	let showDate = false;
+	let showTimezone = false;
 	
 	// Exam timing settings
 	let examStartTime = '';
@@ -384,7 +386,9 @@
 			announcementPosition,
 			announcementFontSize,
 			highContrastMode,
-			forceNTP
+			forceNTP,
+			showDate,
+			showTimezone
 		};
 		localStorage.setItem('examSettings', JSON.stringify(settings));
 	}
@@ -441,6 +445,8 @@
 			announcementFontSize = settings.announcementFontSize || 16;
 			highContrastMode = settings.highContrastMode || false;
 			forceNTP = settings.forceNTP || false;
+			showDate = settings.showDate ?? false;
+			showTimezone = settings.showTimezone ?? false;
 			if (settings.checkpoints) checkpoints = settings.checkpoints;
 			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
 		}
@@ -491,10 +497,15 @@
 			bind:announcementFontSize
 			bind:highContrastMode
 			bind:forceNTP
+			bind:showDate
+			bind:showTimezone
 			{activeCheckpoint}
 			{nextCheckpoint}
 			{timeSource}
 			{ntpInfo}
+			{healthStatus}
+			{lastHealthCheck}
+			{responseTime}
 			on:saveSettings={saveExamSettings}
 			on:calculateCheckpoints={calculateCheckpointTimes}
 			on:addCustomCheckpoint={addCustomCheckpoint}
@@ -548,16 +559,13 @@
 					{nextCheckpoint}
 					{is24Hour}
 					{highContrastMode}
+					showDate={showDate}
+					showTimezone={showTimezone}
 					on:toggleTimeFormat={toggleTimeFormat}
 				/>
 				
 				<SystemStatus 
 					{healthStatus}
-					{lastHealthCheck}
-					{responseTime}
-					{timeSource}
-					{ntpInfo}
-					{forceNTP}
 					{highContrastMode}
 					on:updateNow={manualHealthCheck}
 				/>

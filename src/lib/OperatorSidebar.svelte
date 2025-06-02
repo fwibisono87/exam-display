@@ -39,6 +39,11 @@
 		errorDetails?: string; 
 		hasValidMetrics?: boolean;
 	};
+	export let healthStatus: string = 'checking...';
+	export let lastHealthCheck: string = '';
+	export let responseTime: number = 0;
+	export let showDate: boolean = false;
+	export let showTimezone: boolean = false;
 
 	// Event dispatchers for parent component communication
 	import { createEventDispatcher } from 'svelte';
@@ -46,7 +51,7 @@
 	import { quintOut, backOut } from 'svelte/easing';
 	
 	// Accordion state management - organized by logical groups
-	let accordionStates = {
+	let accordionStates: Record<string, boolean> = {
 		examSetup: true,      // Open by default - most important
 		timing: false,        // Exam timing and checkpoints
 		announcements: false, // Announcements and display settings
@@ -58,7 +63,9 @@
 
 	// Toggle accordion sections
 	function toggleAccordion(section: string) {
-		accordionStates[section] = !accordionStates[section];
+		if (section in accordionStates) {
+			accordionStates[section] = !accordionStates[section];
+		}
 	}
 
 	function saveExamSettings() {
@@ -94,11 +101,12 @@
 			dispatch('clearAllSettings');
 		}
 	}
+
 </script>
 
 <!-- Modal Backdrop -->
 <div 
-	class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"
+	class="fixed inset-0 bg-black bg-opacity-10 z-40 flex items-center justify-center p-4"
 	on:click={closeSidebar}
 	transition:fade="{{ duration: 200 }}"
 >
@@ -275,6 +283,16 @@
 							</label>
 							<p class="text-xs text-gray-500 mt-1">Enhanced visibility for damaged projectors and low contrast displays</p>
 						</div>
+						<div class="flex items-center gap-4 mt-2 mb-2">
+							<label class="flex items-center cursor-pointer">
+								<input type="checkbox" bind:checked={showDate} class="mr-2" />
+								<span class="text-xs">Show Date</span>
+							</label>
+							<label class="flex items-center cursor-pointer">
+								<input type="checkbox" bind:checked={showTimezone} class="mr-2" />
+								<span class="text-xs">Show Timezone</span>
+							</label>
+						</div>
 						{#if isEditingAnnouncements}
 							<div class="mb-2">
 								<textarea bind:value={announcements} placeholder="Enter announcements for students..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-800 text-xs" rows="4"></textarea>
@@ -297,10 +315,45 @@
 			<div class="mb-4 border rounded-lg">
 				<button class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" on:click={() => accordionStates.system = !accordionStates.system}>
 					<span>System & NTP</span>
-					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.system ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+					<div class="flex items-center">
+						<span class="w-3 h-3 rounded-full mr-2 animate-pulse"
+							class:bg-green-500={healthStatus === 'healthy'}
+							class:bg-yellow-400={healthStatus === 'syncing' || healthStatus === 'checking...'}
+							class:bg-red-500={healthStatus === 'unhealthy'}
+						></span>
+						<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.system ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+					</div>
 				</button>
 				{#if accordionStates.system}
 					<div class="px-4 pb-4">
+						<!-- System Status Details -->
+						<div class="mb-4 border rounded-lg p-3 bg-gray-50">
+							<h4 class="font-semibold mb-2 flex items-center"><span class="mr-2">📊</span>System Status</h4>
+							<div class="mb-2 text-xs">
+								<div class="flex items-center mb-1">
+									<span class="w-3 h-3 rounded-full mr-2"
+										class:bg-green-500={healthStatus === 'healthy'}
+										class:bg-yellow-400={healthStatus === 'syncing' || healthStatus === 'checking...'}
+										class:bg-red-500={healthStatus === 'unhealthy'}
+									></span>
+									<span class="font-medium">Status:</span>
+									<span class="ml-1">{healthStatus}</span>
+								</div>
+								<div class="flex mb-1">
+									<span class="font-medium">Last Check:</span>
+									<span class="ml-1">{lastHealthCheck || 'N/A'}</span>
+								</div>
+								<div class="flex mb-1">
+									<span class="font-medium">Time Source:</span>
+									<span class="ml-1">{timeSource || 'local'}</span>
+								</div>
+								<div class="flex">
+									<span class="font-medium">Response Time:</span>
+									<span class="ml-1">{responseTime || 0}ms</span>
+								</div>
+							</div>
+						</div>
+						
 						{#if timeSource === 'ntp_partial' || (ntpInfo.server && !ntpInfo.hasValidMetrics)}
 							<div class="mb-4 border border-indigo-200 rounded-lg p-3 bg-indigo-50">
 								<h4 class="font-semibold mb-2 flex items-center"><span class="mr-2">🔧</span>NTP Override</h4>
