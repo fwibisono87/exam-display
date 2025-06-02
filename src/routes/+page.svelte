@@ -506,7 +506,7 @@
 		/>
 	{/if}
 
-	<div class="max-w-6xl mx-auto {showOperatorSidebar ? 'mr-96' : ''}">
+	<div class=" mx-auto {showOperatorSidebar ? 'mr-96' : ''}">
 		<!-- Header for Exam Context -->
 		<header class="text-center mb-8">
 			<h1 class="text-3xl font-bold mb-2 {highContrastMode ? 'text-yellow-400' : 'text-gray-900'}">{customTitle}</h1>
