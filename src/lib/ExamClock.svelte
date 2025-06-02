@@ -28,6 +28,9 @@
 	
 	// Viewport-specific scaling factors to ensure we fill different screen sizes appropriately
 	function getViewportScalingFactor(): number {
+		// During server-side rendering, return the default value
+		if (typeof window === 'undefined') return 1.02;
+		
 		const width = window.innerWidth;
 		
 		// Special case for problematic width around 1024px
@@ -47,42 +50,59 @@
 	
 	// Function to adjust font size based on container width and time length
 	function adjustFontSize() {
-		if (!timeElement || !containerElement) return;
+		if (!timeElement || !containerElement || typeof window === 'undefined') return;
 		
-		// Get the width of the container
-		containerWidth = containerElement.clientWidth;
-		const containerHeight = window.innerHeight * 0.45; // Increased from 0.4
+		try {
+			// Get the width of the container
+			containerWidth = containerElement.clientWidth || 0;
+			const containerHeight = typeof window !== 'undefined' ? window.innerHeight * 0.45 : 400; // Default height for SSR
+			
+			// Safety check - if container width is unusually small or zero, use fallback
+			if (containerWidth < 20 && typeof window !== 'undefined') {
+				containerWidth = window.innerWidth * 0.8; // Fallback to 80% of window width
+			} else if (containerWidth < 20) {
+				containerWidth = 800; // Reasonable default for SSR
+			}
+			
+			// Determine character width factor - different characters take different amounts of space
+			// Time format examples: "12:34" (5 chars), "12:34:56" (8 chars)
+			const contentLength = serverTime?.length || 5;
+			const timeHasSeconds = contentLength > 5;
+			const charWidthFactor = timeHasSeconds ? 0.95 : 1.05; // Adjust based on format
 		
-		// Determine character width factor - different characters take different amounts of space
-		// Time format examples: "12:34" (5 chars), "12:34:56" (8 chars)
-		const contentLength = serverTime?.length || 5;
-		const timeHasSeconds = contentLength > 5;
-		const charWidthFactor = timeHasSeconds ? 0.95 : 1.05; // Adjust based on format
-		
-		// Apply viewport-specific scaling
-		const viewportScaling = getViewportScalingFactor();
-		
-		// Calculate based on width with more aggressive sizing
-		let widthBasedSize = (containerWidth / contentLength) * FONT_SIZE_COEFFICIENT * charWidthFactor * viewportScaling;
-		
-		// Apply a fixed minimum at 1024px screen width to ensure we fill the space
-		if (window.innerWidth >= 1000 && window.innerWidth <= 1100) {
-			// For 1024px screens, enforce a minimum size based on container width
-			const minSizeAt1024 = containerWidth * 0.18; // Ensure we use at least 18% of container width for each character
-			widthBasedSize = Math.max(widthBasedSize, minSizeAt1024);
+			// Apply viewport-specific scaling
+			const viewportScaling = getViewportScalingFactor();
+			
+			// Calculate based on width with more aggressive sizing
+			let widthBasedSize = (containerWidth / contentLength) * FONT_SIZE_COEFFICIENT * charWidthFactor * viewportScaling;
+			
+			// Apply a fixed minimum at 1024px screen width to ensure we fill the space - only in browser
+			if (typeof window !== 'undefined' && window.innerWidth >= 1000 && window.innerWidth <= 1100) {
+				// For 1024px screens, enforce a minimum size based on container width
+				const minSizeAt1024 = containerWidth * 0.18; // Ensure we use at least 18% of container width for each character
+				widthBasedSize = Math.max(widthBasedSize, minSizeAt1024);
+			}
+			
+			// Also consider height to prevent overflow
+			let heightBasedSize = containerHeight * 0.95; // Increased from 0.9
+			
+			// Take the smaller of the two to ensure fitting in both dimensions
+			fontSize = Math.min(widthBasedSize, heightBasedSize);
+			
+			// Apply constraints
+			fontSize = Math.min(Math.max(fontSize, MIN_FONT_SIZE), MAX_FONT_SIZE);
+			
+			try {
+				// Apply the calculated font size
+				if (timeElement && fontSize > 0) {
+					timeElement.style.fontSize = `${Math.floor(fontSize)}px`;
+				}
+			} catch (err) {
+				console.warn('Error applying font size:', err);
+			}
+		} catch (error) {
+			console.warn('Error calculating font size:', error);
 		}
-		
-		// Also consider height to prevent overflow
-		let heightBasedSize = containerHeight * 0.95; // Increased from 0.9
-		
-		// Take the smaller of the two to ensure fitting in both dimensions
-		fontSize = Math.min(widthBasedSize, heightBasedSize);
-		
-		// Apply constraints
-		fontSize = Math.min(Math.max(fontSize, MIN_FONT_SIZE), MAX_FONT_SIZE);
-		
-		// Apply the calculated font size
-		timeElement.style.fontSize = `${fontSize}px`;
 	}
 	
 	// Debounce function to limit how frequently we resize
@@ -106,17 +126,25 @@
 	
 	// Set up the resize observer and event listeners
 	onMount(() => {
+		// Browser-only code - make sure we're running in the browser
+		if (typeof window === 'undefined') return;
+		
 		// Initial size adjustment (with slight delay to ensure DOM is ready)
 		setTimeout(adjustFontSize, 50);
 		
 		// Use ResizeObserver for more accurate container size tracking
 		if (typeof ResizeObserver !== 'undefined') {
-			resizeObserver = new ResizeObserver(entries => {
-				requestAnimationFrame(() => adjustFontSize());
-			});
-			
-			if (containerElement) {
-				resizeObserver.observe(containerElement);
+			try {
+				resizeObserver = new ResizeObserver(entries => {
+					requestAnimationFrame(() => adjustFontSize());
+				});
+				
+				if (containerElement) {
+					resizeObserver.observe(containerElement);
+				}
+			} catch (err) {
+				console.warn('ResizeObserver failed to initialize:', err);
+				// Fallback to window resize events only
 			}
 		}
 		
@@ -129,19 +157,25 @@
 	
 	// Clean up event listeners when component is destroyed
 	onDestroy(() => {
-		window.removeEventListener('resize', debouncedAdjustFontSize);
-		window.removeEventListener('orientationchange', adjustFontSize);
-		
-		if (resizeObserver && containerElement) {
-			resizeObserver.unobserve(containerElement);
-			resizeObserver.disconnect();
+		// Browser-only cleanup
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('resize', debouncedAdjustFontSize);
+			window.removeEventListener('orientationchange', adjustFontSize);
+			
+			if (resizeObserver && containerElement) {
+				resizeObserver.unobserve(containerElement);
+				resizeObserver.disconnect();
+			}
 		}
 	});
 	
 	// Adjust size when the time changes or when component updates
 	afterUpdate(() => {
-		// Wait a tiny bit to ensure DOM is ready
-		setTimeout(adjustFontSize, 10);
+		// Only run in browser context
+		if (typeof window !== 'undefined') {
+			// Wait a tiny bit to ensure DOM is ready
+			setTimeout(adjustFontSize, 10);
+		}
 	});
 
 	const dispatch = createEventDispatcher();
@@ -159,14 +193,22 @@
 	<div 
 		bind:this={containerElement}
 		class="w-full py-2 transition-all duration-700 ease-out {highContrastMode ? 'bg-black' : ''}" 
-		style="{activeCheckpoint && !highContrastMode ? `background: linear-gradient(135deg, ${activeCheckpoint.color}10, ${activeCheckpoint.color}20);` : ''}"
+		style="{activeCheckpoint ? 
+			(highContrastMode ? 
+				`background: linear-gradient(135deg, ${activeCheckpoint.color}30, ${activeCheckpoint.color}40);` : 
+				`background: linear-gradient(135deg, ${activeCheckpoint.color}10, ${activeCheckpoint.color}20);`) 
+			: ''}"
 	>
 		<!-- Exam Time Display - Adaptive Size -->
 		<div 
 			bind:this={timeElement}
 			class="font-mono font-bold mb-0 leading-[0.9] transition-all duration-500 ease-out w-full text-center overflow-visible px-2"
-			style="color: {highContrastMode ? '#FFFF00' : (activeCheckpoint ? activeCheckpoint.color : '#4F46E5')}; letter-spacing: -0.02em;"
-			in:fly="{{ y: -20, duration: 600, easing: quintOut }}"
+			style="color: {highContrastMode ? 
+				(activeCheckpoint ? '#FFFFFF' : '#FFFF00') : 
+				(activeCheckpoint ? activeCheckpoint.color : '#4F46E5')}; 
+				text-shadow: {highContrastMode ? '0 0 12px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,1), 2px 2px 3px #000' : 'none'}; 
+				letter-spacing: -0.02em;"
+			in:fly={{ y: -20, duration: 600, easing: quintOut }}
 		>
 			{serverTime || 'Loading...'}
 		</div>
@@ -196,14 +238,16 @@
 		<!-- Next Checkpoint Info -->
 		{#if nextCheckpoint}
 			<div 
-				class="mt-6 mx-auto max-w-md p-4 rounded-lg transition-all duration-400 ease-out transform hover:scale-102 {highContrastMode ? 'bg-yellow-400 border-2 border-white' : 'bg-white bg-opacity-70'}"
+				class="mt-6 mx-auto max-w-md p-4 rounded-lg transition-all duration-400 ease-out transform hover:scale-102"
+				style="background-color: {highContrastMode ? nextCheckpoint.color : 'rgba(255, 255, 255, 0.7)'}; 
+					border: {highContrastMode ? '2px solid white' : 'none'};"
 				in:fly="{{ y: 20, duration: 500, delay: 400, easing: quintOut }}"
 			>
 				<div class="flex items-center justify-center">
 					<span class="text-2xl mr-3 transition-transform duration-200 hover:scale-125">{nextCheckpoint.emoji}</span>
 					<div class="text-base md:text-lg">
-						<span class="font-medium {highContrastMode ? 'text-black' : ''}">Next: {nextCheckpoint.name}</span>
-						<span class="ml-2 {highContrastMode ? 'text-black font-bold' : 'text-gray-600'}">at {nextCheckpoint.time}</span>
+						<span class="font-medium" style="color: {highContrastMode ? 'black' : ''}">Next: {nextCheckpoint.name}</span>
+						<span class="ml-2 {highContrastMode ? 'font-bold' : ''}" style="color: {highContrastMode ? 'black' : '#4B5563'}">at {nextCheckpoint.time}</span>
 					</div>
 				</div>
 			</div>

@@ -107,14 +107,14 @@
 <!-- Modal Backdrop -->
 <div 
 	class="fixed inset-0 bg-black bg-opacity-10 z-40 flex items-center justify-center p-4"
-	on:click={closeSidebar}
-	transition:fade="{{ duration: 200 }}"
+	on:click={() => closeSidebar()}
+	transition:fade={{ duration: 200 }}
 >
 	<!-- Modal Content -->
 	<div 
-		class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+		class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto {highContrastMode ? 'high-contrast-form' : ''}"
 		on:click|stopPropagation
-		transition:fly="{{ y: 20, duration: 300, easing: quintOut }}"
+		transition:fly={{ y: 20, duration: 300, easing: quintOut }}
 	>
 		<div class="p-6">
 			<div class="flex items-center justify-between mb-6">
@@ -444,3 +444,60 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	/* High Contrast Mode Styles for Form Elements */
+	:global(.high-contrast-form) {
+		/* Improved visibility for all form elements */
+		--input-border-color: #000;
+		--input-text-color: #000;
+		--input-bg-color: #fff;
+		--input-focus-border-color: #2563eb;
+		--input-focus-ring-color: rgba(37, 99, 235, 0.5);
+	}
+	
+	:global(.high-contrast-form input[type="text"]),
+	:global(.high-contrast-form input[type="time"]),
+	:global(.high-contrast-form select),
+	:global(.high-contrast-form textarea) {
+		border-color: var(--input-border-color);
+		border-width: 2px;
+		color: var(--input-text-color);
+		background-color: var(--input-bg-color);
+	}
+	
+	:global(.high-contrast-form input[type="text"]:focus),
+	:global(.high-contrast-form input[type="time"]:focus),
+	:global(.high-contrast-form select:focus),
+	:global(.high-contrast-form textarea:focus) {
+		border-color: var(--input-focus-border-color);
+		box-shadow: 0 0 0 3px var(--input-focus-ring-color);
+		outline: none;
+	}
+	
+	/* Ensure color inputs have a visible border in high contrast mode */
+	:global(.high-contrast-form input[type="color"]) {
+		border: 2px solid #000;
+		outline: 1px solid white;
+	}
+	
+	/* Ensure checkbox labels are visible */
+	:global(.high-contrast-form input[type="checkbox"] + span) {
+		color: #000;
+	}
+	
+	/* Improve visibility of range sliders */
+	:global(.high-contrast-form input[type="range"]) {
+		height: 8px;
+		background: #ccc;
+		border: 1px solid #000;
+	}
+	
+	/* Ensure text in preview areas is visible */
+	:global(.high-contrast-form .text-gray-500),
+	:global(.high-contrast-form .text-gray-600),
+	:global(.high-contrast-form .text-gray-700),
+	:global(.high-contrast-form .text-gray-800) {
+		color: #000 !important;
+	}
+</style>

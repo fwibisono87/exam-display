@@ -213,6 +213,11 @@
 		loadAnnouncements();
 		loadExamSettings();
 		
+		// Apply high contrast mode to body if enabled
+		if (highContrastMode && typeof document !== 'undefined') {
+			document.body.classList.add('high-contrast');
+		}
+		
 		// Fetch initial data
 		fetchServerTime();
 		checkServerHealth();
@@ -449,6 +454,15 @@
 			showTimezone = settings.showTimezone ?? false;
 			if (settings.checkpoints) checkpoints = settings.checkpoints;
 			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
+			
+			// Apply high contrast mode to body if enabled
+			if (typeof document !== 'undefined') {
+				if (highContrastMode) {
+					document.body.classList.add('high-contrast');
+				} else {
+					document.body.classList.remove('high-contrast');
+				}
+			}
 		}
 	}
 	
@@ -466,6 +480,15 @@
 		// Only revert to ntp_partial if the metrics are actually invalid
 		timeSource = 'ntp_partial';
 		saveExamSettings();
+	}
+	
+	// Reactive statement for high contrast mode
+	$: if (typeof document !== 'undefined') {
+		if (highContrastMode) {
+			document.body.classList.add('high-contrast');
+		} else {
+			document.body.classList.remove('high-contrast');
+		}
 	}
 </script>
 
