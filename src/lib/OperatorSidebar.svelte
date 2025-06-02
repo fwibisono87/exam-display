@@ -41,7 +41,7 @@
 
 	// Event dispatchers for parent component communication
 	import { createEventDispatcher } from 'svelte';
-	import { fly, slide } from 'svelte/transition';
+	import { fly, slide, fade } from 'svelte/transition';
 	import { quintOut, backOut } from 'svelte/easing';
 	
 	const dispatch = createEventDispatcher();
@@ -81,20 +81,31 @@
 	}
 </script>
 
-<div class="fixed top-0 right-0 h-full w-96 bg-white shadow-2xl z-40 overflow-y-auto border-l border-gray-200">
-	<div class="p-6">
-		<div class="flex items-center justify-between mb-6">
-			<h2 class="text-xl font-bold text-gray-900">Operator Controls</h2>
-			<button 
-				on:click={closeSidebar}
-				class="text-gray-500 hover:text-gray-700"
-				aria-label="Close operator controls"
-			>
-				<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-				</svg>
-			</button>
-		</div>
+<!-- Modal Backdrop -->
+<div 
+	class="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center p-4"
+	on:click={closeSidebar}
+	transition:fade="{{ duration: 200 }}"
+>
+	<!-- Modal Content -->
+	<div 
+		class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+		on:click|stopPropagation
+		transition:fly="{{ y: 20, duration: 300, easing: quintOut }}"
+	>
+		<div class="p-6">
+			<div class="flex items-center justify-between mb-6">
+				<h2 class="text-xl font-bold text-gray-900">Operator Controls</h2>
+				<button 
+					on:click={closeSidebar}
+					class="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+					aria-label="Close operator controls"
+				>
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+					</svg>
+				</button>
+			</div>
 
 		<!-- Display Title Section -->
 		<div class="mb-8">
@@ -519,6 +530,7 @@
 					Clear All Settings
 				</button>
 			</div>
+		</div>
 		</div>
 	</div>
 </div>
