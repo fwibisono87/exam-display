@@ -104,7 +104,7 @@
 
 </script>
 
-<!-- Modal Backdrop - Using a button as the backdrop handler instead of a div with click handler -->
+<!-- Modal structure with proper accessibility -->
 <div 
 	class="fixed inset-0 bg-black bg-opacity-10 z-40 flex items-center justify-center p-4"
 	transition:fade={{ duration: 200 }}
@@ -117,14 +117,17 @@
 	tabindex="-1"
 >
 	<!-- Invisible backdrop button for accessibility -->
-	<button 
-		class="fixed inset-0 w-full h-full opacity-0 cursor-default" 
-		on:click={closeSidebar}
-		aria-label="Close modal"
-	></button>
+	<div class="absolute inset-0" aria-hidden="true">
+		<button 
+			class="w-full h-full bg-transparent border-0" 
+			on:click={closeSidebar}
+			aria-label="Close modal"
+		></button>
+	</div>
+	
 	<!-- Modal Content -->
 	<div 
-		class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto {highContrastMode ? 'high-contrast-form' : ''}"
+		class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative z-50 {highContrastMode ? 'high-contrast-form' : ''}"
 		transition:fly={{ y: 20, duration: 300, easing: quintOut }}
 		role="document"
 	>
