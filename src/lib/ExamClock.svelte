@@ -17,6 +17,58 @@
 	// Progress tracking
 	export let examProgress: number = 0; // 0-100 representing overall exam progress
 	export let nextCheckpointProgress: number = 0; // 0-100 representing progress to next checkpoint
+	
+	// Enhanced function to determine text color with improved contrast
+	function getTextColorForBackground(bgColor: string, defaultColor: string = '#FFFFFF'): string {
+		if (!bgColor || highContrastMode) return defaultColor;
+		
+		// Remove hash if present and handle rgba format
+		if (bgColor.startsWith('rgba')) {
+			// Extract RGB values from rgba format
+			const matches = bgColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
+			if (!matches) return defaultColor;
+			
+			const r = parseInt(matches[1]);
+			const g = parseInt(matches[2]);
+			const b = parseInt(matches[3]);
+			
+			// Calculate luminance - more sophisticated than simple brightness
+			const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+			
+			// Higher threshold for better contrast
+			return luminance > 0.55 ? '#000000' : '#FFFFFF';
+		}
+		
+		let hexColor = bgColor.replace(/^#/, '');
+		
+		// Convert 3-digit hex to 6-digit
+		if (hexColor.length === 3) {
+			hexColor = hexColor[0] + hexColor[0] + hexColor[1] + hexColor[1] + hexColor[2] + hexColor[2];
+		}
+		
+		// Convert hex to RGB
+		const r = parseInt(hexColor.substr(0, 2), 16);
+		const g = parseInt(hexColor.substr(2, 2), 16);
+		const b = parseInt(hexColor.substr(4, 2), 16);
+		
+		// Calculate luminance - more sophisticated than simple brightness
+		const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+		
+		// Higher threshold for better contrast
+		return luminance > 0.55 ? '#000000' : '#FFFFFF';
+	}
+	
+	// Determine colors based on position within progress bar for next checkpoint
+	$: nextProgressBgColor = nextCheckpoint?.color || '#4F46E5';
+	$: nextGrayBgColor = 'rgb(229, 231, 235)'; // bg-gray-200
+	
+	// Text colors for different parts of the next checkpoint banner
+	$: nextTextColorOnProgress = getTextColorForBackground(nextProgressBgColor);
+	$: nextTextColorOnGray = getTextColorForBackground(nextGrayBgColor, '#000000');
+	
+	// Determine effective text color based on progress percentage and position
+	$: nextLeftSideTextColor = nextCheckpointProgress > 30 ? nextTextColorOnProgress : nextTextColorOnGray;
+	$: nextRightSideTextColor = nextCheckpointProgress > 85 ? nextTextColorOnProgress : nextTextColorOnGray;
 
 	// Reference to the time element and its container
 	let timeElement: HTMLElement;
@@ -247,34 +299,41 @@
 		{#if nextCheckpoint}
 			<div 
 				class="mt-6 mx-auto max-w-md rounded-lg transition-all duration-400 ease-out relative overflow-hidden"
-				style="border: {highContrastMode ? '2px solid white' : 'none'};
+				style="border: {highContrastMode ? '2px solid white' : `2px solid ${nextCheckpoint.color}`};
 					box-shadow: {highContrastMode ? `0 0 10px ${nextCheckpoint.color}, 0 0 15px ${nextCheckpoint.color}` : 'none'};"
 				in:fly="{{ y: 20, duration: 500, delay: 400, easing: quintOut }}"
 			>
-				<!-- Progress bar background -->
-				<div class="absolute inset-0 w-full" 
-					style="background-color: {highContrastMode ? nextCheckpoint.color : 'rgba(255, 255, 255, 0.7)'}; 
-						opacity: {highContrastMode ? '0.5' : '0.7'};"></div>
+				<!-- Progress bar background - gray for unfilled area -->
+				<div class="absolute inset-0 w-full bg-gray-200"></div>
 				
-				<!-- Progress bar fill -->
+				<!-- Progress bar fill - next checkpoint color -->
 				<div class="absolute top-0 left-0 h-full transition-all duration-500 ease-out"
 					style="width: {nextCheckpointProgress}%; 
-						background-color: {highContrastMode ? 'white' : nextCheckpoint.color}; 
-						opacity: {highContrastMode ? '0.4' : '0.5'};"></div>
+						background-color: {nextCheckpoint.color};">
+				</div>
 				
 				<!-- Content container -->
 				<div class="p-4 flex items-center justify-between relative z-10 w-full">
 					<div class="flex items-center">
 						<span class="text-2xl mr-3 transition-transform duration-200">{nextCheckpoint.emoji}</span>
 						<div class="text-base md:text-lg">
-							<span class="font-medium" style="color: {highContrastMode ? 'black' : ''}">Next: {nextCheckpoint.name}</span>
-							<span class="ml-2 {highContrastMode ? 'font-bold' : ''}" style="color: {highContrastMode ? 'black' : '#4B5563'}">at {nextCheckpoint.time}</span>
+							<span class="font-medium" 
+								style="color: {highContrastMode ? 'black' : nextLeftSideTextColor}">
+								Next: {nextCheckpoint.name}
+							</span>
+							<span class="ml-2 {highContrastMode ? 'font-bold' : ''}" 
+								style="color: {highContrastMode ? 'black' : nextLeftSideTextColor}">
+								at {nextCheckpoint.time}
+							</span>
 						</div>
 					</div>
 					
 					<!-- Progress percentage -->
 					<div class="font-mono text-lg font-bold" 
-						style="color: {highContrastMode ? 'black' : nextCheckpoint.color};">
+						style="color: {highContrastMode ? 'black' : nextRightSideTextColor};
+						padding: 0 4px;
+						background-color: {highContrastMode ? 'transparent' : 'rgba(255,255,255,0.6)'};
+						border-radius: 4px;">
 						{nextCheckpointProgress}%
 					</div>
 				</div>
