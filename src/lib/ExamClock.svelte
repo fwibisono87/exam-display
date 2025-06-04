@@ -206,7 +206,11 @@
 			style="color: {highContrastMode ? 
 				(activeCheckpoint ? '#FFFFFF' : '#FFFF00') : 
 				(activeCheckpoint ? activeCheckpoint.color : '#4F46E5')}; 
-				text-shadow: {highContrastMode ? '0 0 12px rgba(0,0,0,0.9), 0 0 4px rgba(0,0,0,1), 2px 2px 3px #000' : 'none'}; 
+				text-shadow: {highContrastMode ? 
+					(activeCheckpoint ? 
+						`0 0 5px ${activeCheckpoint.color}, 0 0 10px ${activeCheckpoint.color}, 0 0 15px ${activeCheckpoint.color}, 0 0 20px ${activeCheckpoint.color}` : 
+						'0 0 5px #FFFF00, 0 0 10px #FFFF00, 0 0 15px #FFFF00, 0 0 20px #FFFF00') : 
+					'none'}; 
 				letter-spacing: -0.02em;"
 			in:fly={{ y: -20, duration: 600, easing: quintOut }}
 		>
@@ -240,7 +244,8 @@
 			<div 
 				class="mt-6 mx-auto max-w-md p-4 rounded-lg transition-all duration-400 ease-out transform hover:scale-102"
 				style="background-color: {highContrastMode ? nextCheckpoint.color : 'rgba(255, 255, 255, 0.7)'}; 
-					border: {highContrastMode ? '2px solid white' : 'none'};"
+					border: {highContrastMode ? '2px solid white' : 'none'};
+					box-shadow: {highContrastMode ? `0 0 10px ${nextCheckpoint.color}, 0 0 15px ${nextCheckpoint.color}` : 'none'};"
 				in:fly="{{ y: 20, duration: 500, delay: 400, easing: quintOut }}"
 			>
 				<div class="flex items-center justify-center">

@@ -20,7 +20,7 @@
 		style="background-color: {highContrastMode ? (checkpoint?.color || '#000000') : `${checkpoint?.color || '#000000'}20`}; 
 				border: {highContrastMode ? '4px solid white' : `2px solid ${checkpoint?.color || '#000000'}`}; 
 				opacity: {highContrastMode ? '0.85' : '1'};
-				box-shadow: {highContrastMode ? '0 0 15px rgba(255,255,255,0.3)' : 'none'};"
+				box-shadow: {highContrastMode ? `0 0 10px ${checkpoint?.color || '#FFFFFF'}, 0 0 15px ${checkpoint?.color || '#FFFFFF'}` : 'none'};"
 		in:fly={{ y: -30, duration: 600, easing: quintOut }}
 		out:scale={{ duration: 300, easing: quintOut }}
 	>
@@ -34,14 +34,18 @@
 			<div 
 				class="text-lg font-bold transition-all duration-300 ease-out" 
 				style="color: {highContrastMode ? 'white' : checkpoint.color}; 
-					text-shadow: {highContrastMode ? '0 0 4px rgba(0,0,0,0.9), 2px 2px 3px rgba(0,0,0,0.8)' : 'none'};"
+					text-shadow: {highContrastMode ? 
+						`0 0 5px ${checkpoint.color}, 0 0 10px ${checkpoint.color}, 0 0 15px ${checkpoint.color}` : 
+						'none'};"
 				in:fly={{ x: 20, duration: 400, delay: 100, easing: quintOut }}
 			>
 				{checkpoint.name}
 			</div>
 			<div 
 				class="text-sm transition-all duration-300 ease-out {highContrastMode ? 'text-white font-bold' : 'text-gray-600'}"
-				style="text-shadow: {highContrastMode ? '1px 1px 2px rgba(0,0,0,0.8)' : 'none'};"
+				style="text-shadow: {highContrastMode ? 
+						`0 0 3px ${checkpoint.color}, 0 0 6px ${checkpoint.color}` : 
+						'none'};"
 				in:fly={{ x: 20, duration: 400, delay: 200, easing: quintOut }}
 			>
 				Active since {checkpoint.time}
