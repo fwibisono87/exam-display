@@ -1,12 +1,43 @@
 <script lang="ts">
 	import { fly, slide } from 'svelte/transition';
 	import { quintOut, backOut } from 'svelte/easing';
+	import { onMount } from 'svelte';
+	import MarkdownIt from 'markdown-it';
 
 	export let announcements: string;
 	export let showAnnouncements: boolean;
 	export let position: 'top' | 'left';
 	export let fontSize: number = 16;
 	export let highContrastMode: boolean = false;
+	
+	// Initialize markdown parser with safe options
+	let md: MarkdownIt;
+	let renderedMarkdown: string = '';
+
+	// Create the markdown parser instance once component is mounted
+	onMount(() => {
+		md = new MarkdownIt({
+			html: false, // Disable HTML tags in source
+			breaks: true, // Convert '\n' in paragraphs into <br>
+			linkify: true, // Autoconvert URL-like text to links
+			typographer: true // Enable some language-neutral replacements
+		});
+		parseMarkdown();
+	});
+
+	// Parse markdown when announcements change
+	$: if (md && announcements) {
+		parseMarkdown();
+	}
+	
+	function parseMarkdown() {
+		try {
+			renderedMarkdown = md ? md.render(announcements) : announcements;
+		} catch(e) {
+			console.warn('Error parsing markdown:', e);
+			renderedMarkdown = announcements; // Fallback to plain text
+		}
+	}
 </script>
 
 {#if showAnnouncements && announcements.trim()}
@@ -32,13 +63,97 @@
 				</h2>
 				
 				<div 
-					class="{position === 'left' ? 'text-sm xl:text-base' : 'text-lg'} whitespace-pre-line leading-relaxed transition-all duration-400 ease-out {highContrastMode ? 'text-black font-bold' : 'text-yellow-800'}"
+					class="{position === 'left' ? 'text-sm xl:text-base' : 'text-lg'} leading-relaxed transition-all duration-400 ease-out markdown-content {highContrastMode ? 'text-black font-bold' : 'text-yellow-800'}"
 					style="font-size: {fontSize}px;"
-					in:fly="{{ y: 20, duration: 500, delay: 300, easing: quintOut }}"
+					in:fly={{ y: 20, duration: 500, delay: 300, easing: quintOut }}
 				>
-					{announcements}
+					{#if md}
+						{@html renderedMarkdown}
+					{:else}
+						<p class="whitespace-pre-line">{announcements}</p>
+					{/if}
 				</div>
 			</div>
 		</div>
 	</div>
 {/if}
+
+<style>
+	/* Styles for markdown content */
+	:global(.markdown-content) {
+		/* Remove default whitespace-pre-line to allow markdown to format properly */
+		white-space: normal;
+	}
+	
+	:global(.markdown-content p) {
+		margin-bottom: 1em;
+	}
+	
+	:global(.markdown-content h1),
+	:global(.markdown-content h2),
+	:global(.markdown-content h3),
+	:global(.markdown-content h4),
+	:global(.markdown-content h5) {
+		font-weight: bold;
+		margin-top: 1em;
+		margin-bottom: 0.5em;
+	}
+	
+	:global(.markdown-content h1) {
+		font-size: 1.5em;
+	}
+	
+	:global(.markdown-content h2) {
+		font-size: 1.3em;
+	}
+	
+	:global(.markdown-content h3) {
+		font-size: 1.2em;
+	}
+	
+	:global(.markdown-content ul),
+	:global(.markdown-content ol) {
+		margin-left: 2em;
+		margin-bottom: 1em;
+	}
+	
+	:global(.markdown-content ul) {
+		list-style-type: disc;
+	}
+	
+	:global(.markdown-content ol) {
+		list-style-type: decimal;
+	}
+	
+	:global(.markdown-content li) {
+		margin-bottom: 0.3em;
+	}
+	
+	:global(.markdown-content a) {
+		color: #3182ce;
+		text-decoration: underline;
+	}
+	
+	:global(.markdown-content code) {
+		font-family: monospace;
+		background-color: rgba(0, 0, 0, 0.1);
+		padding: 0.1em 0.3em;
+		border-radius: 3px;
+		font-size: 0.9em;
+	}
+	
+	:global(.markdown-content pre) {
+		background-color: rgba(0, 0, 0, 0.1);
+		padding: 0.5em;
+		border-radius: 5px;
+		overflow-x: auto;
+		margin-bottom: 1em;
+	}
+	
+	:global(.markdown-content blockquote) {
+		border-left: 4px solid #718096;
+		padding-left: 1em;
+		font-style: italic;
+		margin: 1em 0;
+	}
+</style>

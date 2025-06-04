@@ -295,13 +295,31 @@
 						</div>
 						{#if isEditingAnnouncements}
 							<div class="mb-2">
-								<textarea bind:value={announcements} placeholder="Enter announcements for students..." class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-800 text-xs" rows="4"></textarea>
+								<textarea 
+									bind:value={announcements} 
+									placeholder="Enter announcements for students... Markdown syntax is supported." 
+									class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-800 text-xs" 
+									rows="6"
+								></textarea>
+								<div class="text-xs text-gray-500 mt-1 mb-2">
+									<p>Markdown syntax supported:</p>
+									<code class="bg-gray-100 text-xs px-1 rounded">**bold**</code>,
+									<code class="bg-gray-100 text-xs px-1 rounded">*italic*</code>,
+									<code class="bg-gray-100 text-xs px-1 rounded"># Heading</code>,
+									<code class="bg-gray-100 text-xs px-1 rounded">- List item</code>,
+									<code class="bg-gray-100 text-xs px-1 rounded">[Link](url)</code>
+								</div>
 								<button on:click={saveAnnouncements} class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs transition-colors w-full">Save Announcements</button>
 							</div>
 						{:else}
 							<div class="p-2 bg-gray-50 rounded-lg border">
 								{#if announcements.trim()}
-									<div class="text-xs text-gray-800 whitespace-pre-line">{announcements}</div>
+									<div class="text-xs text-gray-800 whitespace-pre-line">
+										<div class="flex items-center mb-1">
+											<p class="text-xs text-gray-500">{announcements.length} characters | <span class="italic">Markdown will be rendered on display</span></p>
+										</div>
+										{announcements}
+									</div>
 								{:else}
 									<div class="text-gray-500 italic text-xs">No announcements set</div>
 								{/if}
