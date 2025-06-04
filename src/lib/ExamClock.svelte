@@ -242,14 +242,14 @@
 		<!-- Next Checkpoint Info -->
 		{#if nextCheckpoint}
 			<div 
-				class="mt-6 mx-auto max-w-md p-4 rounded-lg transition-all duration-400 ease-out transform hover:scale-102"
+				class="mt-6 mx-auto max-w-md p-4 rounded-lg transition-all duration-400 ease-out"
 				style="background-color: {highContrastMode ? nextCheckpoint.color : 'rgba(255, 255, 255, 0.7)'}; 
 					border: {highContrastMode ? '2px solid white' : 'none'};
 					box-shadow: {highContrastMode ? `0 0 10px ${nextCheckpoint.color}, 0 0 15px ${nextCheckpoint.color}` : 'none'};"
 				in:fly="{{ y: 20, duration: 500, delay: 400, easing: quintOut }}"
 			>
 				<div class="flex items-center justify-center">
-					<span class="text-2xl mr-3 transition-transform duration-200 hover:scale-125">{nextCheckpoint.emoji}</span>
+					<span class="text-2xl mr-3 transition-transform duration-200">{nextCheckpoint.emoji}</span>
 					<div class="text-base md:text-lg">
 						<span class="font-medium" style="color: {highContrastMode ? 'black' : ''}">Next: {nextCheckpoint.name}</span>
 						<span class="ml-2 {highContrastMode ? 'font-bold' : ''}" style="color: {highContrastMode ? 'black' : '#4B5563'}">at {nextCheckpoint.time}</span>

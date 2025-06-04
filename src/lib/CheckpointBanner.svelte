@@ -16,7 +16,7 @@
 
 {#if checkpoint}
 	<div 
-		class="mb-6 p-4 rounded-lg flex items-center justify-center transition-all duration-500 ease-out transform hover:scale-105 hover:shadow-lg" 
+		class="mb-6 p-4 rounded-lg flex items-center justify-center transition-all duration-500 ease-out" 
 		style="background-color: {highContrastMode ? (checkpoint?.color || '#000000') : `${checkpoint?.color || '#000000'}20`}; 
 				border: {highContrastMode ? '4px solid white' : `2px solid ${checkpoint?.color || '#000000'}`}; 
 				opacity: {highContrastMode ? '0.85' : '1'};
@@ -25,7 +25,7 @@
 		out:scale={{ duration: 300, easing: quintOut }}
 	>
 		<span 
-			class="text-3xl mr-3 transition-transform duration-300 ease-out hover:scale-125 hover:rotate-12"
+			class="text-3xl mr-3 transition-transform duration-300 ease-out"
 			in:scale={{ delay: 200, duration: 400, easing: bounceOut }}
 		>
 			{checkpoint.emoji}
