@@ -16,13 +16,16 @@
 
 	// Create the markdown parser instance once component is mounted
 	onMount(() => {
-		md = new MarkdownIt({
-			html: false, // Disable HTML tags in source
-			breaks: true, // Convert '\n' in paragraphs into <br>
-			linkify: true, // Autoconvert URL-like text to links
-			typographer: true // Enable some language-neutral replacements
-		});
-		parseMarkdown();
+		// Only initialize in browser environment
+		if (typeof window !== 'undefined') {
+			md = new MarkdownIt({
+				html: false, // Disable HTML tags in source
+				breaks: true, // Convert '\n' in paragraphs into <br>
+				linkify: true, // Autoconvert URL-like text to links
+				typographer: true // Enable some language-neutral replacements
+			});
+			parseMarkdown();
+		}
 	});
 
 	// Parse markdown when announcements change
@@ -31,6 +34,12 @@
 	}
 	
 	function parseMarkdown() {
+		// Check if we're in browser environment
+		if (typeof window === 'undefined') {
+			renderedMarkdown = announcements; // On server, just use plain text
+			return;
+		}
+		
 		try {
 			renderedMarkdown = md ? md.render(announcements) : announcements;
 		} catch(e) {

@@ -104,21 +104,33 @@
 
 </script>
 
-<!-- Modal Backdrop -->
+<!-- Modal Backdrop - Using a button as the backdrop handler instead of a div with click handler -->
 <div 
 	class="fixed inset-0 bg-black bg-opacity-10 z-40 flex items-center justify-center p-4"
-	on:click={() => closeSidebar()}
 	transition:fade={{ duration: 200 }}
+	role="dialog"
+	aria-modal="true"
+	aria-labelledby="modal-title"
+	on:keydown={(event) => {
+		if (event.key === 'Escape') closeSidebar();
+	}}
+	tabindex="-1"
 >
+	<!-- Invisible backdrop button for accessibility -->
+	<button 
+		class="fixed inset-0 w-full h-full opacity-0 cursor-default" 
+		on:click={closeSidebar}
+		aria-label="Close modal"
+	></button>
 	<!-- Modal Content -->
 	<div 
 		class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto {highContrastMode ? 'high-contrast-form' : ''}"
-		on:click|stopPropagation
 		transition:fly={{ y: 20, duration: 300, easing: quintOut }}
+		role="document"
 	>
 		<div class="p-6">
 			<div class="flex items-center justify-between mb-6">
-				<h2 class="text-xl font-bold text-gray-900">Operator Controls</h2>
+				<h2 id="modal-title" class="text-xl font-bold text-gray-900">Operator Controls</h2>
 				<button 
 					on:click={closeSidebar}
 					class="text-gray-500 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors"
@@ -134,12 +146,17 @@
 
 			<!-- Exam Setup Accordion -->
 			<div class="mb-4 border rounded-lg">
-				<button class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" on:click={() => accordionStates.examSetup = !accordionStates.examSetup}>
+				<button 
+					class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" 
+					on:click={() => accordionStates.examSetup = !accordionStates.examSetup}
+					aria-expanded={accordionStates.examSetup}
+					aria-controls="examSetupContent"
+				>
 					<span>Exam Setup</span>
-					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.examSetup ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.examSetup ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
 				</button>
 				{#if accordionStates.examSetup}
-					<div class="px-4 pb-4">
+					<div id="examSetupContent" class="px-4 pb-4">
 						<label for="custom-title" class="block text-sm font-medium text-gray-700 mb-1">Custom Title</label>
 						<input id="custom-title" type="text" bind:value={customTitle} on:input={saveExamSettings} placeholder="Enter custom title (e.g., 'Final Exam', 'Quiz Time')" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
 						<p class="text-xs text-gray-500 mt-1">This will replace "Exam Time Display" in the header</p>
@@ -149,12 +166,17 @@
 
 			<!-- Timing & Checkpoints Accordion -->
 			<div class="mb-4 border rounded-lg">
-				<button class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" on:click={() => accordionStates.timing = !accordionStates.timing}>
+				<button 
+					class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" 
+					on:click={() => accordionStates.timing = !accordionStates.timing}
+					aria-expanded={accordionStates.timing}
+					aria-controls="timingContent"
+				>
 					<span>Timing & Checkpoints</span>
-					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.timing ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.timing ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
 				</button>
 				{#if accordionStates.timing}
-					<div class="px-4 pb-4">
+					<div id="timingContent" class="px-4 pb-4">
 						<!-- Exam Timing Section -->
 						<div class="mb-4">
 							<label for="exam-start" class="block text-sm font-medium text-gray-700 mb-1">Exam Start Time</label>
@@ -245,12 +267,17 @@
 
 			<!-- Announcements & Display Accordion -->
 			<div class="mb-4 border rounded-lg">
-				<button class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" on:click={() => accordionStates.announcements = !accordionStates.announcements}>
+				<button 
+					class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" 
+					on:click={() => accordionStates.announcements = !accordionStates.announcements}
+					aria-expanded={accordionStates.announcements}
+					aria-controls="announcementsContent"
+				>
 					<span>Announcements & Display</span>
-					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.announcements ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.announcements ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
 				</button>
 				{#if accordionStates.announcements}
-					<div class="px-4 pb-4">
+					<div id="announcementsContent" class="px-4 pb-4">
 						<div class="flex items-center justify-between mb-2">
 							<label class="flex items-center">
 								<input type="checkbox" bind:checked={showAnnouncements} class="mr-2" />
@@ -300,6 +327,8 @@
 									placeholder="Enter announcements for students... Markdown syntax is supported." 
 									class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-800 text-xs" 
 									rows="6"
+									aria-label="Announcement text editor with markdown support"
+									id="announcement-editor"
 								></textarea>
 								<div class="text-xs text-gray-500 mt-1 mb-2">
 									<p>Markdown syntax supported:</p>
@@ -331,19 +360,25 @@
 
 			<!-- System/NTP Accordion -->
 			<div class="mb-4 border rounded-lg">
-				<button class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" on:click={() => accordionStates.system = !accordionStates.system}>
+				<button 
+					class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" 
+					on:click={() => accordionStates.system = !accordionStates.system}
+					aria-expanded={accordionStates.system}
+					aria-controls="systemContent"
+				>
 					<span>System & NTP</span>
 					<div class="flex items-center">
 						<span class="w-3 h-3 rounded-full mr-2 animate-pulse"
 							class:bg-green-500={healthStatus === 'healthy'}
 							class:bg-yellow-400={healthStatus === 'syncing' || healthStatus === 'checking...'}
 							class:bg-red-500={healthStatus === 'unhealthy'}
+							aria-hidden="true"
 						></span>
-						<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.system ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+						<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.system ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
 					</div>
 				</button>
 				{#if accordionStates.system}
-					<div class="px-4 pb-4">
+					<div id="systemContent" class="px-4 pb-4">
 						<!-- System Status Details -->
 						<div class="mb-4 border rounded-lg p-3 bg-gray-50">
 							<h4 class="font-semibold mb-2 flex items-center"><span class="mr-2">📊</span>System Status</h4>
@@ -435,12 +470,17 @@
 
 			<!-- Advanced/Reset Accordion -->
 			<div class="mb-2 border rounded-lg">
-				<button class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" on:click={() => accordionStates.advanced = !accordionStates.advanced}>
+				<button 
+					class="w-full flex justify-between items-center px-4 py-3 font-semibold text-left text-gray-800 focus:outline-none" 
+					on:click={() => accordionStates.advanced = !accordionStates.advanced}
+					aria-expanded={accordionStates.advanced}
+					aria-controls="advancedContent"
+				>
 					<span>Advanced & Reset</span>
-					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.advanced ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+					<svg class="w-5 h-5 transform transition-transform duration-200" style:rotate={accordionStates.advanced ? '90deg' : '0deg'} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
 				</button>
 				{#if accordionStates.advanced}
-					<div class="px-4 pb-4">
+					<div id="advancedContent" class="px-4 pb-4">
 						<h4 class="font-semibold mb-2">Reset for Next Exam</h4>
 						<div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-2">
 							<p class="text-xs text-red-800 mb-1"><strong>Warning:</strong> This will clear all exam settings including:</p>

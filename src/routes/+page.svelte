@@ -213,10 +213,8 @@
 		loadAnnouncements();
 		loadExamSettings();
 		
-		// Apply high contrast mode to body if enabled
-		if (highContrastMode && typeof document !== 'undefined') {
-			document.body.classList.add('high-contrast');
-		}
+		// High contrast mode is now handled with a reactive statement ($:)
+	// This allows more consistent application of the class
 		
 		// Fetch initial data
 		fetchServerTime();
@@ -456,12 +454,8 @@
 			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
 			
 			// Apply high contrast mode to body if enabled
-			if (typeof document !== 'undefined') {
-				if (highContrastMode) {
-					document.body.classList.add('high-contrast');
-				} else {
-					document.body.classList.remove('high-contrast');
-				}
+			if (highContrastMode && typeof document !== 'undefined') {
+				document.body.classList.add('high-contrast');
 			}
 		}
 	}

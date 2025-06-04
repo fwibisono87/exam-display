@@ -67,3 +67,53 @@ body.high-contrast .font-mono {
 .high-contrast-form .text-gray-800 {
   color: #000 !important;
 }
+
+/* High contrast styles for markdown content */
+body.high-contrast .markdown-content {
+  color: #000 !important;
+  font-weight: 600 !important; 
+}
+
+body.high-contrast .markdown-content h1,
+body.high-contrast .markdown-content h2,
+body.high-contrast .markdown-content h3,
+body.high-contrast .markdown-content h4,
+body.high-contrast .markdown-content h5 {
+  color: #000 !important;
+  font-weight: 800 !important;
+  -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.5);
+}
+
+body.high-contrast .markdown-content code {
+  background-color: #fff !important;
+  border: 1px solid #000 !important;
+  color: #000 !important;
+}
+
+body.high-contrast .markdown-content pre {
+  background-color: #fff !important;
+  border: 2px solid #000 !important;
+}
+
+body.high-contrast .markdown-content a {
+  color: #0000EE !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  font-weight: bold !important;
+}
+
+body.high-contrast .markdown-content blockquote {
+  border-left: 4px solid #000 !important;
+  background-color: #fff !important;
+  padding: 0.5em 1em !important;
+}
+
+body.high-contrast .markdown-content ul,
+body.high-contrast .markdown-content ol {
+  margin-left: 2.5em !important;
+}
+
+body.high-contrast .markdown-content li::marker {
+  color: #000 !important;
+  font-weight: bold !important;
+}
