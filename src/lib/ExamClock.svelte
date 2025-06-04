@@ -13,6 +13,10 @@
 	export let highContrastMode: boolean = false;
 	export let showDate: boolean = false;
 	export let showTimezone: boolean = false;
+	
+	// Progress tracking
+	export let examProgress: number = 0; // 0-100 representing overall exam progress
+	export let nextCheckpointProgress: number = 0; // 0-100 representing progress to next checkpoint
 
 	// Reference to the time element and its container
 	let timeElement: HTMLElement;
@@ -187,7 +191,7 @@
 
 <div class="w-full text-center">
 	<!-- Active Checkpoint Banner -->
-	<CheckpointBanner checkpoint={activeCheckpoint} {highContrastMode} />
+	<CheckpointBanner checkpoint={activeCheckpoint} {highContrastMode} progress={examProgress} />
 	
 	<!-- Full Width Time Display -->
 	<div 
@@ -242,17 +246,36 @@
 		<!-- Next Checkpoint Info -->
 		{#if nextCheckpoint}
 			<div 
-				class="mt-6 mx-auto max-w-md p-4 rounded-lg transition-all duration-400 ease-out"
-				style="background-color: {highContrastMode ? nextCheckpoint.color : 'rgba(255, 255, 255, 0.7)'}; 
-					border: {highContrastMode ? '2px solid white' : 'none'};
+				class="mt-6 mx-auto max-w-md rounded-lg transition-all duration-400 ease-out relative overflow-hidden"
+				style="border: {highContrastMode ? '2px solid white' : 'none'};
 					box-shadow: {highContrastMode ? `0 0 10px ${nextCheckpoint.color}, 0 0 15px ${nextCheckpoint.color}` : 'none'};"
 				in:fly="{{ y: 20, duration: 500, delay: 400, easing: quintOut }}"
 			>
-				<div class="flex items-center justify-center">
-					<span class="text-2xl mr-3 transition-transform duration-200">{nextCheckpoint.emoji}</span>
-					<div class="text-base md:text-lg">
-						<span class="font-medium" style="color: {highContrastMode ? 'black' : ''}">Next: {nextCheckpoint.name}</span>
-						<span class="ml-2 {highContrastMode ? 'font-bold' : ''}" style="color: {highContrastMode ? 'black' : '#4B5563'}">at {nextCheckpoint.time}</span>
+				<!-- Progress bar background -->
+				<div class="absolute inset-0 w-full" 
+					style="background-color: {highContrastMode ? nextCheckpoint.color : 'rgba(255, 255, 255, 0.7)'}; 
+						opacity: {highContrastMode ? '0.5' : '0.7'};"></div>
+				
+				<!-- Progress bar fill -->
+				<div class="absolute top-0 left-0 h-full transition-all duration-500 ease-out"
+					style="width: {nextCheckpointProgress}%; 
+						background-color: {highContrastMode ? 'white' : nextCheckpoint.color}; 
+						opacity: {highContrastMode ? '0.4' : '0.5'};"></div>
+				
+				<!-- Content container -->
+				<div class="p-4 flex items-center justify-between relative z-10 w-full">
+					<div class="flex items-center">
+						<span class="text-2xl mr-3 transition-transform duration-200">{nextCheckpoint.emoji}</span>
+						<div class="text-base md:text-lg">
+							<span class="font-medium" style="color: {highContrastMode ? 'black' : ''}">Next: {nextCheckpoint.name}</span>
+							<span class="ml-2 {highContrastMode ? 'font-bold' : ''}" style="color: {highContrastMode ? 'black' : '#4B5563'}">at {nextCheckpoint.time}</span>
+						</div>
+					</div>
+					
+					<!-- Progress percentage -->
+					<div class="font-mono text-lg font-bold" 
+						style="color: {highContrastMode ? 'black' : nextCheckpoint.color};">
+						{nextCheckpointProgress}%
 					</div>
 				</div>
 			</div>

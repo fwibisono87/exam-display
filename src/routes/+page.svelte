@@ -137,6 +137,10 @@
 		}
 	}
 	
+	// Progress tracking variables
+	let examProgress = 0; // 0-100 representing overall exam progress
+	let nextCheckpointProgress = 0; // 0-100 representing progress to next checkpoint
+
 	// Update the time display using current client time + server offset
 	function updateTimeDisplay() {
 		const now = new Date();
@@ -144,6 +148,9 @@
 		
 		// Check for active checkpoints
 		updateCheckpointStatus();
+		
+		// Calculate progress percentages
+		calculateProgressValues();
 		
 		// Format time
 		const timeOnly = currentTime.toLocaleString('en-US', {
@@ -163,6 +170,66 @@
 		
 		serverTime = timeOnly;
 		serverDate = dateOnly;
+	}
+	
+	// Calculate progress values for both exam and next checkpoint
+	function calculateProgressValues() {
+		if (!currentTime || !examStartTime || !examEndTime) {
+			examProgress = 0;
+			nextCheckpointProgress = 0;
+			return;
+		}
+		
+		// Parse start and end times
+		const today = currentTime.toISOString().split('T')[0]; // Get current date in YYYY-MM-DD
+		const start = new Date(`${today}T${examStartTime}`);
+		let end = new Date(`${today}T${examEndTime}`);
+		
+		// If end time is earlier than start time, assume it's the next day
+		if (end < start) {
+			end = new Date(`${today}T${examEndTime}`);
+			end.setDate(end.getDate() + 1);
+		}
+		
+		// Calculate overall exam progress
+		const totalExamDuration = end.getTime() - start.getTime();
+		const elapsedTime = currentTime.getTime() - start.getTime();
+		
+		// Calculate percentage, clamping between 0-100
+		examProgress = Math.min(100, Math.max(0, Math.floor((elapsedTime / totalExamDuration) * 100)));
+		
+		// Calculate next checkpoint progress
+		if (nextCheckpoint && nextCheckpoint.time) {
+			const nextCheckpointDate = new Date(`${today}T${nextCheckpoint.time}`);
+			
+			// If next checkpoint is earlier than current time, assume it's the next day
+			if (nextCheckpointDate < currentTime) {
+				nextCheckpointDate.setDate(nextCheckpointDate.getDate() + 1);
+			}
+			
+			// If we have an active checkpoint, calculate from active to next
+			if (activeCheckpoint) {
+				const activeCheckpointDate = new Date(`${today}T${activeCheckpoint.time}`);
+				
+				// If active checkpoint is showing as after current time, assume it was yesterday
+				if (activeCheckpointDate > currentTime) {
+					activeCheckpointDate.setDate(activeCheckpointDate.getDate() - 1);
+				}
+				
+				const segmentDuration = nextCheckpointDate.getTime() - activeCheckpointDate.getTime();
+				const elapsedSegmentTime = currentTime.getTime() - activeCheckpointDate.getTime();
+				
+				nextCheckpointProgress = Math.min(100, Math.max(0, Math.floor((elapsedSegmentTime / segmentDuration) * 100)));
+			} else {
+				// If no active checkpoint, calculate from exam start to next checkpoint
+				const segmentDuration = nextCheckpointDate.getTime() - start.getTime();
+				const elapsedSegmentTime = currentTime.getTime() - start.getTime();
+				
+				nextCheckpointProgress = Math.min(100, Math.max(0, Math.floor((elapsedSegmentTime / segmentDuration) * 100)));
+			}
+		} else {
+			nextCheckpointProgress = 0;
+		}
 	}
 	
 	async function checkServerHealth() {
@@ -576,6 +643,8 @@
 					{nextCheckpoint}
 					{is24Hour}
 					{highContrastMode}
+					{examProgress}
+					{nextCheckpointProgress}
 					showDate={showDate}
 					showTimezone={showTimezone}
 					on:toggleTimeFormat={toggleTimeFormat}
