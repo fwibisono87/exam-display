@@ -30,7 +30,7 @@
 		>
 			{checkpoint.emoji}
 		</span>
-		<div class="text-left">
+		<div class="text-left flex flex-row gap-2">
 			<div 
 				class="text-lg font-bold transition-all duration-300 ease-out" 
 				style="color: {highContrastMode ? 'white' : checkpoint.color}; 
@@ -42,13 +42,13 @@
 				{checkpoint.name}
 			</div>
 			<div 
-				class="text-sm transition-all duration-300 ease-out {highContrastMode ? 'text-white font-bold' : 'text-gray-600'}"
+				class="text-md my-auto transition-all duration-300 ease-out {highContrastMode ? 'text-white font-bold' : 'text-gray-600'}"
 				style="text-shadow: {highContrastMode ? 
 						`0 0 3px ${checkpoint.color}, 0 0 6px ${checkpoint.color}` : 
 						'none'};"
 				in:fly={{ x: 20, duration: 400, delay: 200, easing: quintOut }}
 			>
-				Active since {checkpoint.time}
+				(Since {checkpoint.time})
 			</div>
 		</div>
 	</div>
