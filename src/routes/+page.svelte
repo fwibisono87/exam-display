@@ -1,9 +1,17 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onlet forceNTP = false; // Force accept NTP even with invalid metrics
+let showDate = false;
+let showTimezone = false;
+
+// Session sharing state
+let showSessionModal = false; // Control visibility of session sharing modaltroy } from 'svelte';
 	import OperatorSidebar from '$lib/OperatorSidebar.svelte';
 	import AnnouncementsBanner from '$lib/AnnouncementsBanner.svelte';
 	import ExamClock from '$lib/ExamClock.svelte';
 	import SystemStatus from '$lib/SystemStatus.svelte';
+	import SessionSharingModal from '$lib/SessionSharingModal.svelte';
+	import SessionStatusIndicator from '$lib/SessionStatusIndicator.svelte';
+	import { sessionStore, type ExamState } from '$lib/session-store';
 	
 	let serverTime = '';
 	let serverDate = '';
@@ -275,13 +283,77 @@
 		healthInterval = setInterval(checkServerHealth, intervalMs);
 	}
 	
+	// Handle state updates from master session (when in follower mode)
+	function handleExternalStateUpdate(newState: Partial<ExamState>) {
+		// Only apply changes if we're in follower mode
+		if (!$sessionStore.isFollower) return;
+		
+		// Apply received state to our local state
+		if (newState.customTitle) customTitle = newState.customTitle;
+		if (newState.highContrastMode !== undefined) highContrastMode = newState.highContrastMode;
+		if (newState.is24Hour !== undefined) is24Hour = newState.is24Hour;
+		if (newState.showDate !== undefined) showDate = newState.showDate;
+		if (newState.showTimezone !== undefined) showTimezone = newState.showTimezone;
+		if (newState.announcements !== undefined) announcements = newState.announcements;
+		if (newState.announcementPosition !== undefined) announcementPosition = newState.announcementPosition;
+		if (newState.announcementFontSize !== undefined) announcementFontSize = newState.announcementFontSize;
+		if (newState.showAnnouncements !== undefined) showAnnouncements = newState.showAnnouncements;
+		
+		// Apply checkpoint data if provided
+		if (newState.allCheckpoints && newState.allCheckpoints.length > 0) {
+			updateCheckpointsFromExternal(newState.allCheckpoints);
+		}
+		
+		// Save the updated settings
+		saveSettings();
+	}
+	
+	// Update local checkpoints from external data
+	function updateCheckpointsFromExternal(checkpointData: any[]) {
+		// Reset checkpoints array
+		checkpoints = checkpointData.map(cp => ({
+			id: cp.id,
+			name: cp.name,
+			color: cp.color,
+			emoji: cp.emoji,
+			time: cp.time,
+			timestamp: cp.timestamp
+		}));
+		
+		// Update checkpoint status
+		updateCheckpoints();
+	}
+	
+	// Get current state to share
+	function getCurrentExamState(): ExamState {
+		return {
+			serverTime,
+			serverDate,
+			timezone,
+			activeCheckpoint: activeCheckpoint ? { ...activeCheckpoint } : null,
+			nextCheckpoint: nextCheckpoint ? { ...nextCheckpoint } : null,
+			allCheckpoints: checkpoints.map(cp => ({ ...cp })),
+			highContrastMode,
+			examProgress: examProgress,
+			nextCheckpointProgress: nextCheckpointProgress,
+			announcements,
+			is24Hour,
+			customTitle,
+			showDate,
+			showTimezone,
+			announcementPosition,
+			announcementFontSize,
+			showAnnouncements
+		};
+	}
+	
 	onMount(() => {
 		// Load saved settings
 		loadAnnouncements();
 		loadExamSettings();
 		
 		// High contrast mode is now handled with a reactive statement ($:)
-	// This allows more consistent application of the class
+		// This allows more consistent application of the class
 		
 		// Fetch initial data
 		fetchServerTime();
@@ -655,6 +727,11 @@
 					{highContrastMode}
 					on:updateNow={manualHealthCheck}
 				/>
+
+				<!-- Session sharing indicator -->
+				<div class="mt-2">
+					<SessionStatusIndicator onClick={() => showSessionModal = true} />
+				</div>
 			</div>
 		</div>
 	</div>
