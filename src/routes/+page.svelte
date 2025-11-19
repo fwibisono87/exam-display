@@ -4,7 +4,9 @@
 	import AnnouncementsBanner from '$lib/AnnouncementsBanner.svelte';
 	import ExamClock from '$lib/ExamClock.svelte';
 	import SystemStatus from '$lib/SystemStatus.svelte';
-	
+	import ConfirmDialog from '$lib/ConfirmDialog.svelte';
+	import type { Checkpoint } from '$lib/utils/checkpointManager';
+
 	let serverTime = '';
 	let serverDate = '';
 	let timezone = '';
@@ -12,6 +14,18 @@
 	let lastHealthCheck = '';
 	let responseTime = 0;
 	let timeSource = 'local';
+
+	// ARIA live region for accessibility announcements
+	let ariaLiveRegion: HTMLElement;
+	let ariaLiveMessage = '';
+	let previousActiveCheckpoint: Checkpoint | null = null;
+
+	// Confirmation dialog state
+	let showConfirmDialog = false;
+	let confirmDialogTitle = '';
+	let confirmDialogMessage = '';
+	let confirmDialogCallback: (() => void) | undefined = undefined;
+
 	let ntpInfo: { 
 		server?: string;
 		offset?: number; 
@@ -464,40 +478,79 @@
 	}
 	
 	function clearAllSettings() {
-		// Reset all exam settings to defaults
-		examStartTime = '';
-		examEndTime = '';
-		examMidpointTime = '';
-		final30Time = '';
-		final15Time = '';
-		final5Time = '';
-		customTitle = 'Exam Time Display';
-		announcementPosition = 'top';
-		announcementFontSize = 16;
-		highContrastMode = false;
-		announcements = '';
-		showAnnouncements = true;
-		isEditingAnnouncements = false;
-		forceNTP = false;
-		
-		// Reset checkpoints to defaults
-		checkpoints = [
-			{ id: 'midpoint', name: 'Exam Midpoint', time: '', enabled: true, emoji: '⏰', color: '#3B82F6', isCustom: false },
-			{ id: 'final30', name: 'Final 30 Minutes', time: '', enabled: true, emoji: '⚠️', color: '#F59E0B', isCustom: false },
-			{ id: 'final15', name: 'Final 15 Minutes', time: '', enabled: true, emoji: '🔔', color: '#EF4444', isCustom: false },
-			{ id: 'final5', name: 'Final 5 Minutes', time: '', enabled: true, emoji: '🚨', color: '#DC2626', isCustom: false }
-		];
-		
-		// Clear custom checkpoints
-		customCheckpoints = [];
-		
-		// Clear active/next checkpoint states
-		activeCheckpoint = null;
-		nextCheckpoint = null;
-		
-		// Clear localStorage
-		localStorage.removeItem('examSettings');
-		localStorage.removeItem('examAnnouncements');
+		// Show confirmation dialog
+		confirmDialogTitle = 'Clear All Settings';
+		confirmDialogMessage =
+			'Are you sure you want to clear all exam settings? This action cannot be undone.';
+		confirmDialogCallback = () => {
+			// Reset all exam settings to defaults
+			examStartTime = '';
+			examEndTime = '';
+			examMidpointTime = '';
+			final30Time = '';
+			final15Time = '';
+			final5Time = '';
+			customTitle = 'Exam Time Display';
+			announcementPosition = 'top';
+			announcementFontSize = 16;
+			highContrastMode = false;
+			announcements = '';
+			showAnnouncements = true;
+			isEditingAnnouncements = false;
+			forceNTP = false;
+
+			// Reset checkpoints to defaults
+			checkpoints = [
+				{
+					id: 'midpoint',
+					name: 'Exam Midpoint',
+					time: '',
+					enabled: true,
+					emoji: '⏰',
+					color: '#3B82F6',
+					isCustom: false
+				},
+				{
+					id: 'final30',
+					name: 'Final 30 Minutes',
+					time: '',
+					enabled: true,
+					emoji: '⚠️',
+					color: '#F59E0B',
+					isCustom: false
+				},
+				{
+					id: 'final15',
+					name: 'Final 15 Minutes',
+					time: '',
+					enabled: true,
+					emoji: '🔔',
+					color: '#EF4444',
+					isCustom: false
+				},
+				{
+					id: 'final5',
+					name: 'Final 5 Minutes',
+					time: '',
+					enabled: true,
+					emoji: '🚨',
+					color: '#DC2626',
+					isCustom: false
+				}
+			];
+
+			// Clear custom checkpoints
+			customCheckpoints = [];
+
+			// Clear active/next checkpoint states
+			activeCheckpoint = null;
+			nextCheckpoint = null;
+
+			// Clear localStorage
+			localStorage.removeItem('examSettings');
+			localStorage.removeItem('examAnnouncements');
+		};
+		showConfirmDialog = true;
 	}
 	
 	function loadExamSettings() {
@@ -551,20 +604,69 @@
 			document.body.classList.remove('high-contrast');
 		}
 	}
+
+	// ARIA live region: Announce checkpoint changes
+	$: if (activeCheckpoint && activeCheckpoint !== previousActiveCheckpoint) {
+		if (previousActiveCheckpoint !== null) {
+			// Don't announce on initial load
+			ariaLiveMessage = `Checkpoint reached: ${activeCheckpoint.name}`;
+		}
+		previousActiveCheckpoint = activeCheckpoint;
+	}
+
+	// Global keyboard shortcuts
+	function handleGlobalKeydown(event: KeyboardEvent) {
+		// Ctrl+K or Cmd+K: Toggle operator sidebar
+		if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+			event.preventDefault();
+			showOperatorSidebar = !showOperatorSidebar;
+		}
+
+		// Ctrl+H or Cmd+H: Toggle high contrast mode
+		if ((event.ctrlKey || event.metaKey) && event.key === 'h') {
+			event.preventDefault();
+			highContrastMode = !highContrastMode;
+		}
+
+		// Escape: Close operator sidebar if open
+		if (event.key === 'Escape' && showOperatorSidebar) {
+			showOperatorSidebar = false;
+		}
+	}
 </script>
+
+<svelte:window on:keydown={handleGlobalKeydown} />
+
+<!-- Skip to main content link for keyboard navigation -->
+<a href="#main-content" class="skip-to-content">
+	Skip to main content
+</a>
+
+<!-- ARIA live region for checkpoint announcements -->
+<div
+	role="status"
+	aria-live="polite"
+	aria-atomic="true"
+	class="sr-only"
+	bind:this={ariaLiveRegion}
+>
+	{ariaLiveMessage}
+</div>
 
 <div class="min-h-screen py-8 px-4 relative {highContrastMode ? 'bg-black text-white' : 'bg-gradient-to-br from-blue-50 to-indigo-100'}">
 	<!-- Operator Controls Toggle -->
-	<button
-		on:click={() => showOperatorSidebar = !showOperatorSidebar}
-		class="fixed top-4 right-4 z-50 p-3 rounded-full shadow-lg transition-colors {highContrastMode ? 'bg-white hover:bg-gray-200 text-black border-4 border-yellow-400' : 'bg-gray-800 hover:bg-gray-900 text-white'}"
-		title="Toggle Operator Controls"
-		aria-label="Toggle Operator Controls"
-	>
-		<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
-		</svg>
-	</button>
+	<nav aria-label="Operator controls">
+		<button
+			on:click={() => showOperatorSidebar = !showOperatorSidebar}
+			class="fixed top-4 right-4 z-50 p-3 rounded-full shadow-lg transition-colors {highContrastMode ? 'bg-white hover:bg-gray-200 text-black border-4 border-yellow-400' : 'bg-gray-800 hover:bg-gray-900 text-white'}"
+			title="Toggle Operator Controls (Ctrl+K)"
+			aria-label="Toggle Operator Controls (Ctrl+K)"
+		>
+			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"></path>
+			</svg>
+		</button>
+	</nav>
 
 	<!-- Operator Sidebar -->
 	{#if showOperatorSidebar}
@@ -601,7 +703,7 @@
 		/>
 	{/if}
 
-	<div class="mx-auto">
+	<main id="main-content" class="mx-auto">
 		<!-- Header for Exam Context -->
 		<header class="text-center mb-8">
 			<h1 class="text-3xl font-bold mb-2 {highContrastMode ? 'text-yellow-400' : 'text-gray-900'}">{customTitle}</h1>
@@ -609,12 +711,13 @@
 
 		<!-- Announcements Section - Top Position -->
 		{#if announcementPosition === 'top'}
-			<AnnouncementsBanner 
-				{announcements} 
-				{showAnnouncements} 
+			<AnnouncementsBanner
+				{announcements}
+				{showAnnouncements}
 				position="top"
 				fontSize={announcementFontSize}
 				{highContrastMode}
+				priority="info"
 			/>
 		{/if}
 
@@ -623,12 +726,13 @@
 			<!-- Announcements Section - Left Position -->
 			{#if announcementPosition === 'left'}
 				<div class="xl:w-80 xl:max-w-80 mb-6 xl:mb-0 xl:flex-shrink-0">
-					<AnnouncementsBanner 
-						{announcements} 
-						{showAnnouncements} 
+					<AnnouncementsBanner
+						{announcements}
+						{showAnnouncements}
 						position="left"
 						fontSize={announcementFontSize}
 						{highContrastMode}
+						priority="info"
 					/>
 				</div>
 			{/if}
@@ -657,5 +761,14 @@
 				/>
 			</div>
 		</div>
-	</div>
+	</main>
+
+	<!-- Confirmation Dialog -->
+	<ConfirmDialog
+		bind:isOpen={showConfirmDialog}
+		title={confirmDialogTitle}
+		message={confirmDialogMessage}
+		onConfirm={confirmDialogCallback}
+		isDangerous={true}
+	/>
 </div>
