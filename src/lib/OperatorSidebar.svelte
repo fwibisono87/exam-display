@@ -1,26 +1,13 @@
 <script lang="ts">
+	import { onMount, onDestroy } from 'svelte';
+	import type { Checkpoint } from '$lib/utils/checkpointManager';
+
 	// Export props for parent component communication
 	export let customTitle: string;
 	export let examStartTime: string;
 	export let examEndTime: string;
-	export let checkpoints: Array<{
-		id: string;
-		name: string;
-		time: string;
-		enabled: boolean;
-		emoji: string;
-		color: string;
-		isCustom: boolean;
-	}>;
-	export let customCheckpoints: Array<{
-		id: string;
-		name: string;
-		time: string;
-		enabled: boolean;
-		emoji: string;
-		color: string;
-		isCustom: boolean;
-	}>;
+	export let checkpoints: Checkpoint[];
+	export let customCheckpoints: Checkpoint[];
 	export let announcements: string;
 	export let isEditingAnnouncements: boolean;
 	export let showAnnouncements: boolean;
@@ -28,15 +15,15 @@
 	export let announcementFontSize: number;
 	export let highContrastMode: boolean;
 	export let forceNTP: boolean;
-	export let activeCheckpoint: any;
-	export let nextCheckpoint: any;
+	export let activeCheckpoint: Checkpoint | null;
+	export let nextCheckpoint: Checkpoint | null;
 	export let timeSource: string;
-	export let ntpInfo: { 
-		server?: string; 
-		offset?: number; 
-		delay?: number; 
-		error?: string; 
-		errorDetails?: string; 
+	export let ntpInfo: {
+		server?: string;
+		offset?: number;
+		delay?: number;
+		error?: string;
+		errorDetails?: string;
 		hasValidMetrics?: boolean;
 	};
 	export let healthStatus: string = 'checking...';
@@ -49,17 +36,81 @@
 	import { createEventDispatcher } from 'svelte';
 	import { fly, slide, fade } from 'svelte/transition';
 	import { quintOut, backOut } from 'svelte/easing';
-	
+
 	// Accordion state management - organized by logical groups
 	let accordionStates: Record<string, boolean> = {
-		examSetup: true,      // Open by default - most important
-		timing: false,        // Exam timing and checkpoints
+		examSetup: true, // Open by default - most important
+		timing: false, // Exam timing and checkpoints
 		announcements: false, // Announcements and display settings
-		system: false,        // System status and NTP settings
-		advanced: false       // Advanced settings and reset
+		system: false, // System status and NTP settings
+		advanced: false // Advanced settings and reset
 	};
-	
+
 	const dispatch = createEventDispatcher();
+
+	// Focus management
+	let modalElement: HTMLElement;
+	let previouslyFocusedElement: HTMLElement | null = null;
+
+	onMount(() => {
+		// Store the previously focused element
+		if (typeof window !== 'undefined') {
+			previouslyFocusedElement = document.activeElement as HTMLElement;
+		}
+
+		// Focus the modal container after a brief delay
+		setTimeout(() => {
+			if (modalElement) {
+				const firstFocusable = modalElement.querySelector<HTMLElement>(
+					'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+				);
+				if (firstFocusable) {
+					firstFocusable.focus();
+				}
+			}
+		}, 100);
+	});
+
+	onDestroy(() => {
+		// Restore focus to the previously focused element when modal closes
+		if (previouslyFocusedElement && typeof previouslyFocusedElement.focus === 'function') {
+			previouslyFocusedElement.focus();
+		}
+	});
+
+	function handleKeydown(event: KeyboardEvent) {
+		// Handle Escape key
+		if (event.key === 'Escape') {
+			closeSidebar();
+			return;
+		}
+
+		// Handle Tab key for focus trapping
+		if (event.key === 'Tab' && modalElement) {
+			const focusableElements = modalElement.querySelectorAll<HTMLElement>(
+				'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+			);
+
+			if (focusableElements.length === 0) return;
+
+			const firstElement = focusableElements[0];
+			const lastElement = focusableElements[focusableElements.length - 1];
+
+			if (event.shiftKey) {
+				// Shift + Tab
+				if (document.activeElement === firstElement) {
+					event.preventDefault();
+					lastElement.focus();
+				}
+			} else {
+				// Tab
+				if (document.activeElement === lastElement) {
+					event.preventDefault();
+					firstElement.focus();
+				}
+			}
+		}
+	}
 
 	// Toggle accordion sections
 	function toggleAccordion(section: string) {
@@ -105,16 +156,15 @@
 </script>
 
 <!-- Modal structure with proper accessibility -->
-<div 
+<div
+	bind:this={modalElement}
 	class="fixed inset-0 bg-black bg-opacity-10 z-40 flex items-center justify-center p-4"
 	transition:fade={{ duration: 200 }}
 	role="dialog"
 	aria-modal="true"
 	aria-labelledby="modal-title"
-	on:keydown={(event) => {
-		if (event.key === 'Escape') closeSidebar();
-	}}
-	tabindex="-1"
+	tabindex="0"
+	on:keydown={handleKeydown}
 >
 	<!-- Invisible backdrop button for accessibility -->
 	<div class="absolute inset-0" aria-hidden="true">

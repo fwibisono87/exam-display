@@ -3,72 +3,38 @@
 	import { createEventDispatcher, onMount, onDestroy, afterUpdate } from 'svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { quintOut } from 'svelte/easing';
+	import { getReadableTextColor } from '$lib/utils/colorUtils';
+	import type { Checkpoint } from '$lib/utils/checkpointManager';
 
 	export let serverTime: string;
 	export let serverDate: string;
 	export let timezone: string;
 	export let is24Hour: boolean;
-	export let activeCheckpoint: any;
-	export let nextCheckpoint: any;
+	export let activeCheckpoint: Checkpoint | null;
+	export let nextCheckpoint: Checkpoint | null;
 	export let highContrastMode: boolean = false;
 	export let showDate: boolean = false;
 	export let showTimezone: boolean = false;
-	
+
 	// Progress tracking
 	export let examProgress: number = 0; // 0-100 representing overall exam progress
 	export let nextCheckpointProgress: number = 0; // 0-100 representing progress to next checkpoint
-	
-	// Enhanced function to determine text color with improved contrast
-	function getTextColorForBackground(bgColor: string, defaultColor: string = '#FFFFFF'): string {
-		if (!bgColor || highContrastMode) return defaultColor;
-		
-		// Remove hash if present and handle rgba format
-		if (bgColor.startsWith('rgba')) {
-			// Extract RGB values from rgba format
-			const matches = bgColor.match(/rgba\((\d+),\s*(\d+),\s*(\d+)/);
-			if (!matches) return defaultColor;
-			
-			const r = parseInt(matches[1]);
-			const g = parseInt(matches[2]);
-			const b = parseInt(matches[3]);
-			
-			// Calculate luminance - more sophisticated than simple brightness
-			const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-			
-			// Higher threshold for better contrast
-			return luminance > 0.55 ? '#000000' : '#FFFFFF';
-		}
-		
-		let hexColor = bgColor.replace(/^#/, '');
-		
-		// Convert 3-digit hex to 6-digit
-		if (hexColor.length === 3) {
-			hexColor = hexColor[0] + hexColor[0] + hexColor[1] + hexColor[1] + hexColor[2] + hexColor[2];
-		}
-		
-		// Convert hex to RGB
-		const r = parseInt(hexColor.substr(0, 2), 16);
-		const g = parseInt(hexColor.substr(2, 2), 16);
-		const b = parseInt(hexColor.substr(4, 2), 16);
-		
-		// Calculate luminance - more sophisticated than simple brightness
-		const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-		
-		// Higher threshold for better contrast
-		return luminance > 0.55 ? '#000000' : '#FFFFFF';
-	}
-	
-	// Determine colors based on position within progress bar for next checkpoint
+
+	// Determine colors for next checkpoint banner using WCAG-compliant algorithm
 	$: nextProgressBgColor = nextCheckpoint?.color || '#4F46E5';
-	$: nextGrayBgColor = 'rgb(229, 231, 235)'; // bg-gray-200
-	
-	// Text colors for different parts of the next checkpoint banner
-	$: nextTextColorOnProgress = getTextColorForBackground(nextProgressBgColor);
-	$: nextTextColorOnGray = getTextColorForBackground(nextGrayBgColor, '#000000');
-	
-	// Determine effective text color based on progress percentage and position
-	$: nextLeftSideTextColor = nextCheckpointProgress > 30 ? nextTextColorOnProgress : nextTextColorOnGray;
-	$: nextRightSideTextColor = nextCheckpointProgress > 85 ? nextTextColorOnProgress : nextTextColorOnGray;
+	$: nextGrayBgColor = '#E5E7EB'; // bg-gray-200
+
+	$: nextTextOnProgress = highContrastMode
+		? { color: '#FFFFFF', textShadow: 'none' }
+		: getReadableTextColor(nextProgressBgColor, { largeText: true, addShadow: false });
+
+	$: nextTextOnGray = highContrastMode
+		? { color: '#FFFFFF', textShadow: 'none' }
+		: getReadableTextColor(nextGrayBgColor, { largeText: true, addShadow: false });
+
+	// Determine effective text color based on progress percentage
+	$: nextLeftSideTextColor = nextCheckpointProgress > 30 ? nextTextOnProgress.color : nextTextOnGray.color;
+	$: nextRightSideTextColor = nextCheckpointProgress > 85 ? nextTextOnProgress.color : nextTextOnGray.color;
 
 	// Reference to the time element and its container
 	let timeElement: HTMLElement;
@@ -246,27 +212,27 @@
 	<CheckpointBanner checkpoint={activeCheckpoint} {highContrastMode} progress={examProgress} />
 	
 	<!-- Full Width Time Display -->
-	<div 
+	<div
 		bind:this={containerElement}
-		class="w-full py-2 transition-all duration-700 ease-out {highContrastMode ? 'bg-black' : ''}" 
-		style="{activeCheckpoint ? 
-			(highContrastMode ? 
-				`background: linear-gradient(135deg, ${activeCheckpoint.color}30, ${activeCheckpoint.color}40);` : 
-				`background: linear-gradient(135deg, ${activeCheckpoint.color}10, ${activeCheckpoint.color}20);`) 
+		class="w-full py-2 transition-all duration-700 ease-out {highContrastMode ? 'bg-black' : ''}"
+		style="{activeCheckpoint
+			? highContrastMode
+				? `background: linear-gradient(135deg, ${activeCheckpoint.color}30, ${activeCheckpoint.color}40);`
+				: `background: linear-gradient(135deg, ${activeCheckpoint.color}10, ${activeCheckpoint.color}20);`
 			: ''}"
 	>
 		<!-- Exam Time Display - Adaptive Size -->
-		<div 
+		<div
 			bind:this={timeElement}
 			class="font-mono font-bold mb-0 leading-[0.9] transition-all duration-500 ease-out w-full text-center overflow-visible px-2"
-			style="color: {highContrastMode ? 
-				(activeCheckpoint ? '#FFFFFF' : '#FFFF00') : 
-				(activeCheckpoint ? activeCheckpoint.color : '#4F46E5')}; 
-				text-shadow: {highContrastMode ? 
-					(activeCheckpoint ? 
-						`0 0 5px ${activeCheckpoint.color}, 0 0 10px ${activeCheckpoint.color}, 0 0 15px ${activeCheckpoint.color}, 0 0 20px ${activeCheckpoint.color}` : 
-						'0 0 5px #FFFF00, 0 0 10px #FFFF00, 0 0 15px #FFFF00, 0 0 20px #FFFF00') : 
-					'none'}; 
+			style="color: {highContrastMode
+				? activeCheckpoint
+					? '#FFFFFF'
+					: '#FFFF00'
+				: activeCheckpoint
+				? activeCheckpoint.color
+				: '#4F46E5'};
+				text-shadow: {highContrastMode ? '0 2px 4px rgba(0, 0, 0, 0.5)' : '0 1px 2px rgba(0, 0, 0, 0.1)'};
 				letter-spacing: -0.02em;"
 			in:fly={{ y: -20, duration: 600, easing: quintOut }}
 		>
@@ -297,25 +263,34 @@
 		
 		<!-- Next Checkpoint Info -->
 		{#if nextCheckpoint}
-			<div 
+			<div
+				role="progressbar"
+				aria-valuenow={nextCheckpointProgress}
+				aria-valuemin={0}
+				aria-valuemax={100}
+				aria-label="Progress to next checkpoint: {nextCheckpoint.name} - {nextCheckpointProgress}% complete"
 				class="mt-6 mx-auto max-w-md rounded-lg transition-all duration-400 ease-out relative overflow-hidden"
-				style="border: {highContrastMode ? '2px solid white' : `2px solid ${nextCheckpoint.color}`};
-					box-shadow: {highContrastMode ? `0 0 10px ${nextCheckpoint.color}, 0 0 15px ${nextCheckpoint.color}` : 'none'};"
+				style="border: {highContrastMode ? '2px solid white' : `2px solid ${nextCheckpoint.color}`};"
 				in:fly="{{ y: 20, duration: 500, delay: 400, easing: quintOut }}"
 			>
 				<!-- Progress bar background - gray for unfilled area -->
-				<div class="absolute inset-0 w-full bg-gray-200"></div>
-				
+				<div class="absolute inset-0 w-full bg-gray-200" aria-hidden="true"></div>
+
 				<!-- Progress bar fill - next checkpoint color -->
-				<div class="absolute top-0 left-0 h-full transition-all duration-500 ease-out"
-					style="width: {nextCheckpointProgress}%; 
-						background-color: {nextCheckpoint.color};">
-				</div>
+				<div
+					class="absolute top-0 left-0 h-full transition-all duration-500 ease-out"
+					style="width: {nextCheckpointProgress}%; background-color: {nextCheckpoint.color};"
+					aria-hidden="true"
+				></div>
 				
 				<!-- Content container -->
 				<div class="p-4 flex items-center justify-between relative z-10 w-full">
 					<div class="flex items-center">
-						<span class="text-2xl mr-3 transition-transform duration-200">{nextCheckpoint.emoji}</span>
+						<span
+							class="text-2xl mr-3 transition-transform duration-200"
+							role="img"
+							aria-label={nextCheckpoint.name}>{nextCheckpoint.emoji}</span
+						>
 						<div class="text-base md:text-lg">
 							<span class="font-medium" 
 								style="color: {highContrastMode ? 'black' : nextLeftSideTextColor}">

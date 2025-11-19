@@ -6,13 +6,15 @@
 
 	export let announcements: string;
 	export let showAnnouncements: boolean;
-	export let position: 'top' | 'left';
+	export let position: 'top' | 'left' | 'bottom' | 'overlay';
 	export let fontSize: number = 16;
 	export let highContrastMode: boolean = false;
-	
+	export let priority: 'info' | 'warning' | 'critical' = 'info';
+
 	// Initialize markdown parser with safe options
 	let md: MarkdownIt;
 	let renderedMarkdown: string = '';
+	let previousAnnouncements: string = '';
 
 	// Create the markdown parser instance once component is mounted
 	onMount(() => {
@@ -25,6 +27,7 @@
 				typographer: true // Enable some language-neutral replacements
 			});
 			parseMarkdown();
+			previousAnnouncements = announcements;
 		}
 	});
 
@@ -32,14 +35,19 @@
 	$: if (md && announcements) {
 		parseMarkdown();
 	}
-	
+
+	// Track announcements changes (for aria-live)
+	$: if (announcements !== previousAnnouncements && typeof window !== 'undefined') {
+		previousAnnouncements = announcements;
+	}
+
 	function parseMarkdown() {
 		// Check if we're in browser environment
 		if (typeof window === 'undefined') {
 			renderedMarkdown = announcements; // On server, just use plain text
 			return;
 		}
-		
+
 		try {
 			renderedMarkdown = md ? md.render(announcements) : announcements;
 		} catch(e) {
@@ -47,32 +55,55 @@
 			renderedMarkdown = announcements; // Fallback to plain text
 		}
 	}
+
+	// Get styles based on priority
+	$: priorityStyles = highContrastMode
+		? {
+				info: 'bg-yellow-400 border-white text-black',
+				warning: 'bg-yellow-400 border-white text-black',
+				critical: 'bg-red-500 border-white text-white'
+		  }[priority]
+		: {
+				info: 'bg-blue-50 border-blue-400 text-blue-900',
+				warning: 'bg-yellow-50 border-yellow-400 text-yellow-900',
+				critical: 'bg-red-50 border-red-400 text-red-900'
+		  }[priority];
+
+	$: priorityIcon = {
+		info: 'ℹ️',
+		warning: '⚠️',
+		critical: '🚨'
+	}[priority];
+
+	let ariaLive: 'assertive' | 'polite' = 'polite';
+	$: ariaLive = priority === 'critical' ? 'assertive' : 'polite';
 </script>
 
 {#if showAnnouncements && announcements.trim()}
-	<div 
-		class="rounded-lg shadow-lg p-4 {position === 'left' ? 'xl:p-4' : 'p-6'} transition-all duration-500 ease-out transform hover:shadow-xl hover:scale-102 {position === 'left' ? 'sticky top-8' : 'mb-8'} {highContrastMode ? 'bg-yellow-400 border-4 border-white text-black' : 'bg-yellow-50 border-l-4 border-yellow-400'}"
-		in:fly="{{ y: position === 'top' ? -50 : 0, x: position === 'left' ? -50 : 0, duration: 600, easing: quintOut }}"
+	<section
+		role="region"
+		aria-label="Exam announcements"
+		aria-live={ariaLive}
+		aria-atomic="true"
+		class="rounded-lg shadow-lg p-4 {position === 'left' ? 'xl:p-4' : 'p-6'} transition-all duration-500 ease-out {position === 'left' ? 'sticky top-8' : position === 'bottom' ? 'mt-8' : position === 'overlay' ? 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-40 max-w-2xl' : 'mb-8'} border-4 {priorityStyles} {highContrastMode ? 'shadow-2xl' : ''}"
+		in:fly="{{ y: position === 'top' ? -50 : position === 'bottom' ? 50 : 0, x: position === 'left' ? -50 : 0, duration: 600, easing: quintOut }}"
 		out:slide="{{ duration: 400, easing: quintOut }}"
 	>
 		<div class="flex items-start">
 			<div class="flex-1 min-w-0">
-				<h2 
-					class="{position === 'left' ? 'text-lg xl:text-xl' : 'text-xl'} font-semibold mb-3 flex items-center transition-all duration-300 ease-out {highContrastMode ? 'text-black' : 'text-yellow-800'}"
+				<h2
+					id="announcements-heading"
+					class="{position === 'left' ? 'text-lg xl:text-xl' : 'text-xl'} font-semibold mb-3 flex items-center transition-all duration-300 ease-out"
 					in:fly="{{ y: -10, duration: 400, delay: 200, easing: backOut }}"
 				>
-					<svg 
-						class="{position === 'left' ? 'w-4 h-4' : 'w-5 h-5'} mr-2 transition-transform duration-300 ease-out hover:scale-125 hover:rotate-12 flex-shrink-0" 
-						fill="currentColor" 
-						viewBox="0 0 20 20"
-					>
-						<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-					</svg>
+					<span class="text-2xl mr-2 flex-shrink-0" role="img" aria-label="{priority} priority">
+						{priorityIcon}
+					</span>
 					<span class="truncate">Announcements</span>
 				</h2>
-				
-				<div 
-					class="{position === 'left' ? 'text-sm xl:text-base' : 'text-lg'} leading-relaxed transition-all duration-400 ease-out markdown-content {highContrastMode ? 'text-black font-bold' : 'text-yellow-800'}"
+
+				<div
+					class="{position === 'left' ? 'text-sm xl:text-base' : 'text-lg'} leading-relaxed transition-all duration-400 ease-out markdown-content {highContrastMode ? 'font-bold' : ''}"
 					style="font-size: {fontSize}px;"
 					in:fly={{ y: 20, duration: 500, delay: 300, easing: quintOut }}
 				>
@@ -84,7 +115,7 @@
 				</div>
 			</div>
 		</div>
-	</div>
+	</section>
 {/if}
 
 <style>
