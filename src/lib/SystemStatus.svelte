@@ -1,40 +1,35 @@
 <script lang="ts">
 	export let healthStatus: string;
 	export let highContrastMode: boolean = false;
+
+	$: statusTone =
+		healthStatus === 'healthy'
+			? highContrastMode
+				? 'bg-emerald-300'
+				: 'bg-emerald-600'
+			: healthStatus === 'unhealthy'
+				? highContrastMode
+					? 'bg-red-400'
+					: 'bg-red-600'
+				: highContrastMode
+					? 'bg-yellow-300'
+					: 'bg-amber-400';
+
+	$: statusLabel =
+		healthStatus === 'healthy'
+			? 'Clock sync healthy'
+			: healthStatus === 'unhealthy'
+				? 'Clock sync unavailable'
+				: 'Checking time source';
 </script>
 
-<div class="mt-2 mb-2 flex items-center justify-center">
-	<span
-		class="mr-2 h-3 w-3 animate-pulse rounded-full {highContrastMode
-			? 'outline outline-1 outline-white'
-			: ''}"
-		style="box-shadow: {highContrastMode ? '0 0 5px rgba(255,255,255,0.5)' : 'none'}"
-		class:bg-green-500={healthStatus === 'healthy' && !highContrastMode}
-		class:bg-yellow-400={!highContrastMode &&
-			(healthStatus === 'syncing' || healthStatus === 'checking...')}
-		class:bg-red-500={healthStatus === 'unhealthy' && !highContrastMode}
-		class:bg-white={highContrastMode && healthStatus === 'healthy'}
-		class:bg-yellow-300={highContrastMode &&
-			(healthStatus === 'syncing' || healthStatus === 'checking...')}
-		class:bg-red-400={highContrastMode && healthStatus === 'unhealthy'}
-	></span>
-	<span
-		class="text-xs font-semibold {highContrastMode ? 'text-shadow text-white' : ''}"
-		class:text-green-700={!highContrastMode && healthStatus === 'healthy'}
-		class:text-yellow-700={!highContrastMode &&
-			(healthStatus === 'syncing' || healthStatus === 'checking...')}
-		class:text-red-700={!highContrastMode && healthStatus === 'unhealthy'}
-	>
-		{healthStatus === 'healthy'
-			? 'Healthy'
-			: healthStatus === 'unhealthy'
-				? 'Unhealthy'
-				: 'Syncing...'}
-	</span>
+<div
+	class={`inline-flex items-center gap-4 border px-5 py-3 text-base font-semibold ${
+		highContrastMode
+			? 'border-white bg-black text-white'
+			: 'border-slate-300 bg-white text-slate-700'
+	}`}
+>
+	<span class={`h-4 w-4 rounded-full ${statusTone}`}></span>
+	<span>{statusLabel}</span>
 </div>
-
-<style>
-	.text-shadow {
-		text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
-	}
-</style>

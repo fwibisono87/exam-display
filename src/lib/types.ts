@@ -61,7 +61,10 @@ export interface PersistedSettings {
 	customTitle: string;
 	announcementPosition: AnnouncementPosition;
 	announcementFontSize: number;
+	is24Hour: boolean;
 	highContrastMode: boolean;
+	showAnnouncements: boolean;
 	showDate: boolean;
 	showTimezone: boolean;
+	bottomDeadZoneVh: number;
 }

@@ -1,3 +1,77 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 @import './lib/high-contrast.css';
+
+:root {
+	--font-body: 'IBM Plex Sans', 'Segoe UI', sans-serif;
+	--font-mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+	--font-display: 'Michroma', 'IBM Plex Sans', sans-serif;
+	--color-bg: #f4f4f4;
+	--color-surface: #ffffff;
+	--color-surface-muted: #f4f4f4;
+	--color-border: #c6c6c6;
+	--color-text: #161616;
+	--color-text-muted: #525252;
+	--color-accent: #0f62fe;
+	--color-accent-soft: #edf5ff;
+	--color-danger: #da1e28;
+	--color-success: #198038;
+	--color-warning: #f1c21b;
+	--color-shadow: 0 16px 40px rgba(22, 22, 22, 0.08);
+}
+
+html,
+body {
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	font-family: var(--font-body);
+	background: var(--color-bg);
+	color: var(--color-text);
+}
+
+body.high-contrast {
+	background: #000;
+	color: #fff;
+}
+
+h1,
+h2,
+h3,
+.font-heading {
+	font-family: var(--font-display);
+	letter-spacing: 0.08em;
+}
+
+.font-mono {
+	font-family: var(--font-mono);
+	font-variant-numeric: tabular-nums;
+}
+
+.glass-panel {
+	box-shadow: none;
+}
+
+.carbon-field {
+	border: 1px solid rgba(82, 87, 94, 0.4);
+	background: #fff;
+	color: var(--color-text);
+}
+
+.carbon-field:focus {
+	outline: 2px solid var(--color-accent);
+	outline-offset: 1px;
+}
+
+.safe-guide-pattern {
+	background-image: linear-gradient(
+		135deg,
+		rgba(241, 194, 27, 0.24) 0,
+		rgba(241, 194, 27, 0.24) 16px,
+		transparent 16px,
+		transparent 32px
+	);
+	background-size: 32px 32px;
+}

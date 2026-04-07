@@ -1,15 +1,17 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
+import { time as getSntpTime } from '@hapi/sntp';
 import type { NtpInfo, TimeResponse, TimeSource } from '$lib/types';
 
 const ENFORCED_NTP_SERVER = 'ntp.ui.ac.id';
+const NTP_TIMEOUT_MS = 5000;
 
 interface NTPResult {
 	time: Date;
 	offset: number;
 	delay: number;
-	hasValidMetrics?: boolean;
+	hasValidMetrics: boolean;
 }
 
 interface NTPError {
@@ -17,84 +19,40 @@ interface NTPError {
 	details?: string;
 }
 
-async function getNTPTime(server: string): Promise<NTPResult | NTPError | null> {
+async function getNTPTime(server: string): Promise<NTPResult | NTPError> {
 	try {
-		const ntpClient = await import('ntp-client');
-
-		return new Promise((resolve) => {
-			// Set a timeout for the NTP request
-			const timeout = setTimeout(() => {
-				console.warn(`NTP timeout: No response from ${server} within 5 seconds`);
-				resolve({
-					error: 'timeout',
-					details: `No response from ${server} within 5 seconds`
-				});
-			}, 5000); // 5 second timeout
-
-			ntpClient.getNetworkTime(
-				server,
-				123,
-				(err: Error | null, date: Date, offset: number, delay: number) => {
-					clearTimeout(timeout);
-					if (err) {
-						console.warn(`NTP sync failed with ${server}:`, err.message);
-						resolve({
-							error: 'connection_failed',
-							details: err.message
-						});
-					} else {
-						// Log all returned values for debugging
-						console.log(
-							`NTP client returned: date=${date}, offset=${offset}, delay=${delay}, types: date=${typeof date}, offset=${typeof offset}, delay=${typeof delay}`
-						);
-
-						// Validate that we at least received a valid date
-						if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-							console.warn(`NTP sync returned invalid date from ${server}: date=${date}`);
-							resolve({
-								error: 'invalid_date',
-								details: `Server returned invalid date: ${date} (type: ${typeof date})`
-							});
-						} else {
-							// We have a valid date, use it even if offset/delay are undefined
-							const validOffset = typeof offset === 'number' && !isNaN(offset) ? offset : 0;
-							const validDelay = typeof delay === 'number' && !isNaN(delay) ? delay : 0;
-
-							if (
-								typeof offset !== 'number' ||
-								typeof delay !== 'number' ||
-								isNaN(offset) ||
-								isNaN(delay)
-							) {
-								console.warn(
-									`NTP sync from ${server} returned valid date but invalid offset/delay. Using date anyway. offset=${offset}, delay=${delay}`
-								);
-							} else {
-								console.log(
-									`NTP sync successful with ${server}: offset=${offset}ms, delay=${delay}ms`
-								);
-							}
-
-							resolve({
-								time: date,
-								offset: validOffset,
-								delay: validDelay,
-								hasValidMetrics:
-									typeof offset === 'number' &&
-									!isNaN(offset) &&
-									typeof delay === 'number' &&
-									!isNaN(delay)
-							});
-						}
-					}
-				}
-			);
+		const result = await getSntpTime({
+			host: server,
+			port: 123,
+			timeout: NTP_TIMEOUT_MS
 		});
-	} catch (error) {
-		console.warn('NTP client not available:', error);
+
+		if (!result.isValid || !Number.isFinite(result.transmitTimestamp)) {
+			return {
+				error: 'invalid_response',
+				details: 'SNTP server returned an invalid response'
+			};
+		}
+
 		return {
-			error: 'client_unavailable',
-			details: error instanceof Error ? error.message : 'Unknown error loading NTP client'
+			time: new Date(result.transmitTimestamp),
+			offset: result.t,
+			delay: result.d,
+			hasValidMetrics: Number.isFinite(result.t) && Number.isFinite(result.d)
+		};
+	} catch (error) {
+		const details = error instanceof Error ? error.message : 'Unknown SNTP error';
+
+		if (details.toLowerCase().includes('timeout')) {
+			return {
+				error: 'timeout',
+				details
+			};
+		}
+
+		return {
+			error: 'connection_failed',
+			details
 		};
 	}
 }
@@ -107,42 +65,31 @@ export const GET: RequestHandler = async () => {
 	let timeSource: TimeSource = 'error';
 	let ntpInfo: NtpInfo = { server: ntpServer };
 
-	console.log(`Attempting NTP sync with enforced server: ${ntpServer}`);
 	const ntpResult = await getNTPTime(ntpServer);
 
-	console.log(`NTP result:`, ntpResult);
-
-	if (ntpResult && 'time' in ntpResult && ntpResult.time) {
+	if ('time' in ntpResult && ntpResult.time) {
 		serverTime = ntpResult.time;
 		timeSource = ntpResult.hasValidMetrics ? 'ntp' : 'ntp_partial';
 		ntpInfo = {
 			server: ntpServer,
-			offset: Math.round(ntpResult.offset),
-			delay: Math.round(ntpResult.delay),
 			hasValidMetrics: ntpResult.hasValidMetrics
 		};
 
-		if (!ntpResult.hasValidMetrics) {
-			console.warn(`NTP time obtained but metrics are estimated/invalid`);
+		if (Number.isFinite(ntpResult.offset)) {
+			ntpInfo.offset = Math.round(ntpResult.offset);
+		}
+
+		if (Number.isFinite(ntpResult.delay)) {
+			ntpInfo.delay = Math.round(ntpResult.delay);
 		}
 	} else {
-		if (ntpResult && 'error' in ntpResult) {
-			console.warn(
-				`NTP sync failed with enforced server. Error: ${ntpResult.error}, Details: ${ntpResult.details}`
-			);
-			ntpInfo = {
-				server: ntpServer,
-				error: ntpResult.error,
-				errorDetails: ntpResult.details
-			};
-		} else {
-			console.warn(`NTP sync returned unexpected result:`, ntpResult);
-			ntpInfo = {
-				server: ntpServer,
-				error: 'unexpected_result',
-				errorDetails: `NTP client returned unexpected result: ${JSON.stringify(ntpResult)}`
-			};
-		}
+		const ntpError = ntpResult as NTPError;
+
+		ntpInfo = {
+			server: ntpServer,
+			error: ntpError.error,
+			errorDetails: ntpError.details
+		};
 
 		const response: TimeResponse = {
 			timezone: configuredTimezone,

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import OperatorSidebar from '$lib/OperatorSidebar.svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import AnnouncementsBanner from '$lib/AnnouncementsBanner.svelte';
 	import ExamClock from '$lib/ExamClock.svelte';
+	import OperatorSidebar from '$lib/OperatorSidebar.svelte';
 	import SystemStatus from '$lib/SystemStatus.svelte';
 	import type {
 		AnnouncementPosition,
@@ -16,6 +16,7 @@
 
 	const DEFAULT_TITLE = 'Exam Time Display';
 	const DEFAULT_ANNOUNCEMENT_POSITION: AnnouncementPosition = 'top';
+	const DEFAULT_ANNOUNCEMENT_FONT_SIZE = 32;
 
 	function createDefaultCheckpoints(): Checkpoint[] {
 		return [
@@ -25,7 +26,7 @@
 				time: '',
 				enabled: true,
 				emoji: '⏰',
-				color: '#3B82F6',
+				color: '#0F62FE',
 				isCustom: false
 			},
 			{
@@ -34,7 +35,7 @@
 				time: '',
 				enabled: true,
 				emoji: '⚠️',
-				color: '#F59E0B',
+				color: '#FF832B',
 				isCustom: false
 			},
 			{
@@ -43,7 +44,7 @@
 				time: '',
 				enabled: true,
 				emoji: '🔔',
-				color: '#EF4444',
+				color: '#DA1E28',
 				isCustom: false
 			},
 			{
@@ -52,7 +53,7 @@
 				time: '',
 				enabled: true,
 				emoji: '🚨',
-				color: '#DC2626',
+				color: '#A2191F',
 				isCustom: false
 			}
 		];
@@ -66,25 +67,26 @@
 	let responseTime = 0;
 	let timeSource: TimeSource = 'error';
 	let ntpInfo: NtpInfo = {};
-	let is24Hour = true; // Default to 24-hour format
+	let is24Hour = true;
 	let interval: ReturnType<typeof setInterval>;
 	let healthInterval: ReturnType<typeof setInterval>;
-	let clockInterval: ReturnType<typeof setInterval>; // For client-side clock ticking
-	let isHealthCheckInRecoveryMode = false; // Track if we're in rapid health check mode
-	let currentTime: Date | null = null; // Store the current time object for client-side updates
-	let serverTimeOffset = 0; // Offset between server time and client time
-	let announcements = ''; // Announcements text for exam setting
-	let isEditingAnnouncements = false; // Toggle for editing mode
-	let showAnnouncements = true; // Toggle for showing/hiding announcements
+	let clockInterval: ReturnType<typeof setInterval>;
+	let isHealthCheckInRecoveryMode = false;
+	let currentTime: Date | null = null;
+	let serverTimeOffset = 0;
+	let announcements = '';
+	let isEditingAnnouncements = false;
+	let showAnnouncements = true;
 	let announcementPosition: AnnouncementPosition = DEFAULT_ANNOUNCEMENT_POSITION;
-	let announcementFontSize = 16; // Font size for announcements in pixels
-	let highContrastMode = false; // High contrast mode for damaged projectors
-	let showOperatorSidebar = false; // Toggle for operator controls
-	let customTitle = DEFAULT_TITLE; // Customizable title text
+	let announcementFontSize = DEFAULT_ANNOUNCEMENT_FONT_SIZE;
+	let highContrastMode = false;
+	let showOperatorSidebar = false;
+	let customTitle = DEFAULT_TITLE;
 	let showDate = false;
 	let showTimezone = false;
+	let bottomDeadZoneVh = 0;
+	let showDeadZoneGuide = false;
 
-	// Exam timing settings
 	let examStartTime = '';
 	let examEndTime = '';
 	let examMidpointTime = '';
@@ -93,34 +95,30 @@
 	let final5Time = '';
 
 	let checkpoints: Checkpoint[] = createDefaultCheckpoints();
-
 	let customCheckpoints: Checkpoint[] = [];
 	let activeCheckpoint: Checkpoint | null = null;
 	let nextCheckpoint: Checkpoint | null = null;
+	let examProgress = 0;
+	let nextCheckpointProgress = 0;
 
 	async function fetchServerTime() {
 		try {
 			const response = await fetch('/api/time');
 			const data: TimeResponse = await response.json();
+
 			if (!response.ok || !data.time) {
 				throw new Error(data.ntp?.errorDetails || data.ntp?.error || 'NTP time unavailable');
 			}
 
-			const serverDate = new Date(data.time);
+			const serverDateValue = new Date(data.time);
 			const clientDate = new Date();
 
-			// Calculate the offset between server time and client time
-			serverTimeOffset = serverDate.getTime() - clientDate.getTime();
-
-			// Update time source and NTP info
+			serverTimeOffset = serverDateValue.getTime() - clientDate.getTime();
 			timeSource = data.timeSource || 'error';
 			ntpInfo = data.ntp || {};
-
-			// Update the current time and display
 			updateTimeDisplay();
 
-			// Extract timezone info
-			const timezoneAbbr = serverDate
+			const timezoneAbbr = serverDateValue
 				.toLocaleString('en-US', {
 					timeZoneName: 'short'
 				})
@@ -132,6 +130,7 @@
 			console.error('Error fetching server time:', error);
 			serverTime = 'NTP unavailable';
 			serverDate = 'Unable to obtain ntp.ui.ac.id time';
+			timezone = '';
 			timeSource = 'error';
 			ntpInfo = {
 				server: 'ntp.ui.ac.id',
@@ -139,45 +138,38 @@
 				errorDetails: error instanceof Error ? error.message : 'Unknown error fetching time'
 			};
 			currentTime = null;
+			serverTimeOffset = 0;
+			examProgress = 0;
+			nextCheckpointProgress = 0;
 		}
 	}
 
-	// Progress tracking variables
-	let examProgress = 0; // 0-100 representing overall exam progress
-	let nextCheckpointProgress = 0; // 0-100 representing progress to next checkpoint
-
-	// Update the time display using current client time + server offset
 	function updateTimeDisplay() {
+		if (timeSource === 'error') {
+			currentTime = null;
+			return;
+		}
+
 		const now = new Date();
 		currentTime = new Date(now.getTime() + serverTimeOffset);
-
-		// Check for active checkpoints
 		updateCheckpointStatus();
-
-		// Calculate progress percentages
 		calculateProgressValues();
 
-		// Format time
-		const timeOnly = currentTime.toLocaleString('en-US', {
+		serverTime = currentTime.toLocaleString('en-US', {
 			hour: '2-digit',
 			minute: '2-digit',
 			second: '2-digit',
 			hour12: !is24Hour
 		});
 
-		// Format date
-		const dateOnly = currentTime.toLocaleString('en-US', {
+		serverDate = currentTime.toLocaleString('en-US', {
 			weekday: 'long',
 			year: 'numeric',
 			month: 'long',
 			day: 'numeric'
 		});
-
-		serverTime = timeOnly;
-		serverDate = dateOnly;
 	}
 
-	// Calculate progress values for both exam and next checkpoint
 	function calculateProgressValues() {
 		if (!currentTime || !examStartTime || !examEndTime) {
 			examProgress = 0;
@@ -185,38 +177,29 @@
 			return;
 		}
 
-		// Parse start and end times
-		const today = currentTime.toISOString().split('T')[0]; // Get current date in YYYY-MM-DD
+		const today = currentTime.toISOString().split('T')[0];
 		const start = new Date(`${today}T${examStartTime}`);
 		let end = new Date(`${today}T${examEndTime}`);
 
-		// If end time is earlier than start time, assume it's the next day
 		if (end < start) {
 			end = new Date(`${today}T${examEndTime}`);
 			end.setDate(end.getDate() + 1);
 		}
 
-		// Calculate overall exam progress
 		const totalExamDuration = end.getTime() - start.getTime();
 		const elapsedTime = currentTime.getTime() - start.getTime();
-
-		// Calculate percentage, clamping between 0-100
 		examProgress = Math.min(100, Math.max(0, Math.floor((elapsedTime / totalExamDuration) * 100)));
 
-		// Calculate next checkpoint progress
 		if (nextCheckpoint && nextCheckpoint.time) {
 			const nextCheckpointDate = new Date(`${today}T${nextCheckpoint.time}`);
 
-			// If next checkpoint is earlier than current time, assume it's the next day
 			if (nextCheckpointDate < currentTime) {
 				nextCheckpointDate.setDate(nextCheckpointDate.getDate() + 1);
 			}
 
-			// If we have an active checkpoint, calculate from active to next
 			if (activeCheckpoint) {
 				const activeCheckpointDate = new Date(`${today}T${activeCheckpoint.time}`);
 
-				// If active checkpoint is showing as after current time, assume it was yesterday
 				if (activeCheckpointDate > currentTime) {
 					activeCheckpointDate.setDate(activeCheckpointDate.getDate() - 1);
 				}
@@ -229,7 +212,6 @@
 					Math.max(0, Math.floor((elapsedSegmentTime / segmentDuration) * 100))
 				);
 			} else {
-				// If no active checkpoint, calculate from exam start to next checkpoint
 				const segmentDuration = nextCheckpointDate.getTime() - start.getTime();
 				const elapsedSegmentTime = currentTime.getTime() - start.getTime();
 
@@ -254,25 +236,21 @@
 			lastHealthCheck = new Date(data.timestamp).toLocaleTimeString();
 			responseTime = endTime - startTime;
 
-			// Handle health status changes
 			if (healthStatus === 'healthy' && isHealthCheckInRecoveryMode) {
-				// Server recovered, switch back to normal interval
 				isHealthCheckInRecoveryMode = false;
-				setHealthCheckInterval(600000); // 10 minutes
+				setHealthCheckInterval(600000);
 			} else if (healthStatus !== 'healthy' && !isHealthCheckInRecoveryMode) {
-				// Server became unhealthy, switch to recovery mode
 				isHealthCheckInRecoveryMode = true;
-				setHealthCheckInterval(30000); // 30 seconds
+				setHealthCheckInterval(30000);
 			}
 		} catch (error) {
 			console.error('Error checking server health:', error);
 			healthStatus = 'unhealthy';
 			lastHealthCheck = new Date().toLocaleTimeString();
 
-			// Switch to recovery mode if not already
 			if (!isHealthCheckInRecoveryMode) {
 				isHealthCheckInRecoveryMode = true;
-				setHealthCheckInterval(30000); // 30 seconds
+				setHealthCheckInterval(30000);
 			}
 		}
 	}
@@ -281,49 +259,19 @@
 		if (healthInterval) {
 			clearInterval(healthInterval);
 		}
+
 		healthInterval = setInterval(checkServerHealth, intervalMs);
 	}
 
-	onMount(() => {
-		// Load saved settings
-		loadAnnouncements();
-		loadExamSettings();
-
-		// High contrast mode is now handled with a reactive statement ($:)
-		// This allows more consistent application of the class
-
-		// Fetch initial data
-		fetchServerTime();
-		checkServerHealth();
-
-		// Start client-side clock that updates every second
-		clockInterval = setInterval(updateTimeDisplay, 1000);
-
-		// Sync with server time every 5 minutes (300000ms)
-		interval = setInterval(fetchServerTime, 300000);
-
-		// Check health every 10 minutes initially (600000ms)
-		healthInterval = setInterval(checkServerHealth, 600000);
-	});
-
-	// Function to toggle time format
-	function toggleTimeFormat() {
-		is24Hour = !is24Hour;
-		updateTimeDisplay(); // Immediately update the display with new format
-	}
-
-	// Manual health check function - now also updates time
 	function manualHealthCheck() {
 		fetchServerTime();
 		checkServerHealth();
 	}
 
-	// Toggle announcements editing mode
 	function toggleAnnouncementsEdit() {
 		isEditingAnnouncements = !isEditingAnnouncements;
 	}
 
-	// Save announcements (could be extended to persist to localStorage or server)
 	function saveAnnouncements() {
 		isEditingAnnouncements = false;
 
@@ -331,11 +279,9 @@
 			return;
 		}
 
-		// For now, just store in localStorage for persistence across page reloads
 		localStorage.setItem('examAnnouncements', announcements);
 	}
 
-	// Load announcements from localStorage on mount
 	function loadAnnouncements() {
 		if (typeof localStorage === 'undefined') {
 			return;
@@ -347,14 +293,12 @@
 		}
 	}
 
-	// Calculate automatic checkpoint times based on exam start and end
 	function calculateCheckpointTimes() {
 		if (!examStartTime || !examEndTime) return;
 
 		const start = new Date(`1970-01-01T${examStartTime}`);
 		const end = new Date(`1970-01-01T${examEndTime}`);
 
-		// Handle next day scenarios
 		if (end < start) {
 			end.setDate(end.getDate() + 1);
 		}
@@ -362,15 +306,14 @@
 		const duration = end.getTime() - start.getTime();
 		const midpoint = new Date(start.getTime() + duration / 2);
 
-		// Calculate checkpoint times
 		examMidpointTime = midpoint.toTimeString().slice(0, 5);
 		final30Time = new Date(end.getTime() - 30 * 60000).toTimeString().slice(0, 5);
 		final15Time = new Date(end.getTime() - 15 * 60000).toTimeString().slice(0, 5);
 		final5Time = new Date(end.getTime() - 5 * 60000).toTimeString().slice(0, 5);
 
-		// Update checkpoint objects
 		updateCheckpointObjects();
 		saveExamSettings();
+		updateTimeDisplay();
 	}
 
 	function updateCheckpointObjects() {
@@ -384,11 +327,8 @@
 		if (!currentTime) return;
 
 		const currentTimeStr = currentTime.toTimeString().slice(0, 5);
-
-		// Create a comprehensive list of all checkpoints including start and end times
 		const allCheckpoints: Checkpoint[] = [];
 
-		// Add exam start checkpoint if defined
 		if (examStartTime) {
 			allCheckpoints.push({
 				id: 'exam-start',
@@ -396,18 +336,14 @@
 				time: examStartTime,
 				enabled: true,
 				emoji: '🟢',
-				color: '#10B981',
+				color: '#198038',
 				isCustom: false
 			});
 		}
 
-		// Add regular checkpoints
 		allCheckpoints.push(...checkpoints.filter((cp) => cp.enabled && cp.time));
-
-		// Add custom checkpoints
 		allCheckpoints.push(...customCheckpoints.filter((cp) => cp.enabled && cp.time));
 
-		// Add exam end checkpoint if defined
 		if (examEndTime) {
 			allCheckpoints.push({
 				id: 'exam-end',
@@ -415,15 +351,13 @@
 				time: examEndTime,
 				enabled: true,
 				emoji: '🔴',
-				color: '#EF4444',
+				color: '#DA1E28',
 				isCustom: false
 			});
 		}
 
-		// Sort all checkpoints by time
 		allCheckpoints.sort((a, b) => a.time.localeCompare(b.time));
 
-		// Find active checkpoint (current time has passed this checkpoint)
 		let newActiveCheckpoint: Checkpoint | null = null;
 		let newNextCheckpoint: Checkpoint | null = null;
 
@@ -432,7 +366,7 @@
 				newActiveCheckpoint = checkpoint;
 			} else if (!newNextCheckpoint && currentTimeStr < checkpoint.time) {
 				newNextCheckpoint = checkpoint;
-				break; // We found the next one, no need to continue
+				break;
 			}
 		}
 
@@ -443,13 +377,14 @@
 	function addCustomCheckpoint() {
 		const newCheckpoint: Checkpoint = {
 			id: `custom-${Date.now()}`,
-			name: 'Custom Checkpoint',
+			name: 'Custom Milestone',
 			time: '',
 			enabled: true,
 			emoji: '📝',
-			color: '#6366F1',
+			color: '#4589FF',
 			isCustom: true
 		};
+
 		customCheckpoints = [...customCheckpoints, newCheckpoint];
 		saveExamSettings();
 	}
@@ -457,6 +392,7 @@
 	function removeCustomCheckpoint(id: string) {
 		customCheckpoints = customCheckpoints.filter((cp) => cp.id !== id);
 		saveExamSettings();
+		updateTimeDisplay();
 	}
 
 	function saveExamSettings() {
@@ -476,15 +412,23 @@
 			customTitle,
 			announcementPosition,
 			announcementFontSize,
+			is24Hour,
 			highContrastMode,
+			showAnnouncements,
 			showDate,
-			showTimezone
+			showTimezone,
+			bottomDeadZoneVh
 		};
+
 		localStorage.setItem('examSettings', JSON.stringify(settings));
 	}
 
+	function handleSettingsSave() {
+		saveExamSettings();
+		updateTimeDisplay();
+	}
+
 	function clearAllSettings() {
-		// Reset all exam settings to defaults
 		examStartTime = '';
 		examEndTime = '';
 		examMidpointTime = '';
@@ -493,27 +437,26 @@
 		final5Time = '';
 		customTitle = DEFAULT_TITLE;
 		announcementPosition = DEFAULT_ANNOUNCEMENT_POSITION;
-		announcementFontSize = 16;
+		announcementFontSize = DEFAULT_ANNOUNCEMENT_FONT_SIZE;
+		is24Hour = true;
 		highContrastMode = false;
 		announcements = '';
 		showAnnouncements = true;
+		showDate = false;
+		showTimezone = false;
+		bottomDeadZoneVh = 0;
 		isEditingAnnouncements = false;
-
-		// Reset checkpoints to defaults
 		checkpoints = createDefaultCheckpoints();
-
-		// Clear custom checkpoints
 		customCheckpoints = [];
-
-		// Clear active/next checkpoint states
 		activeCheckpoint = null;
 		nextCheckpoint = null;
 
 		if (typeof localStorage !== 'undefined') {
-			// Clear localStorage
 			localStorage.removeItem('examSettings');
 			localStorage.removeItem('examAnnouncements');
 		}
+
+		updateTimeDisplay();
 	}
 
 	function loadExamSettings() {
@@ -522,29 +465,39 @@
 		}
 
 		const saved = localStorage.getItem('examSettings');
-		if (saved) {
-			const settings = JSON.parse(saved) as Partial<PersistedSettings>;
-			examStartTime = settings.examStartTime || '';
-			examEndTime = settings.examEndTime || '';
-			examMidpointTime = settings.examMidpointTime || '';
-			final30Time = settings.final30Time || '';
-			final15Time = settings.final15Time || '';
-			final5Time = settings.final5Time || '';
-			customTitle = settings.customTitle || DEFAULT_TITLE;
-			announcementPosition = settings.announcementPosition || DEFAULT_ANNOUNCEMENT_POSITION;
-			announcementFontSize = settings.announcementFontSize || 16;
-			highContrastMode = settings.highContrastMode || false;
-			showDate = settings.showDate ?? false;
-			showTimezone = settings.showTimezone ?? false;
-			if (settings.checkpoints) checkpoints = settings.checkpoints;
-			if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
+		if (!saved) return;
 
-			// Apply high contrast mode to body if enabled
-			if (highContrastMode && typeof document !== 'undefined') {
-				document.body.classList.add('high-contrast');
-			}
-		}
+		const settings = JSON.parse(saved) as Partial<PersistedSettings>;
+		examStartTime = settings.examStartTime || '';
+		examEndTime = settings.examEndTime || '';
+		examMidpointTime = settings.examMidpointTime || '';
+		final30Time = settings.final30Time || '';
+		final15Time = settings.final15Time || '';
+		final5Time = settings.final5Time || '';
+		customTitle = settings.customTitle || DEFAULT_TITLE;
+		announcementPosition = settings.announcementPosition || DEFAULT_ANNOUNCEMENT_POSITION;
+		announcementFontSize = settings.announcementFontSize || DEFAULT_ANNOUNCEMENT_FONT_SIZE;
+		is24Hour = settings.is24Hour ?? true;
+		highContrastMode = settings.highContrastMode || false;
+		showAnnouncements = settings.showAnnouncements ?? true;
+		showDate = settings.showDate ?? false;
+		showTimezone = settings.showTimezone ?? false;
+		bottomDeadZoneVh = settings.bottomDeadZoneVh ?? 0;
+
+		if (settings.checkpoints) checkpoints = settings.checkpoints;
+		if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
 	}
+
+	onMount(() => {
+		loadAnnouncements();
+		loadExamSettings();
+		fetchServerTime();
+		checkServerHealth();
+
+		clockInterval = setInterval(updateTimeDisplay, 1000);
+		interval = setInterval(fetchServerTime, 300000);
+		healthInterval = setInterval(checkServerHealth, 600000);
+	});
 
 	onDestroy(() => {
 		if (interval) clearInterval(interval);
@@ -552,7 +505,6 @@
 		if (clockInterval) clearInterval(clockInterval);
 	});
 
-	// Reactive statement for high contrast mode
 	$: if (typeof document !== 'undefined') {
 		if (highContrastMode) {
 			document.body.classList.add('high-contrast');
@@ -562,21 +514,26 @@
 	}
 </script>
 
+<svelte:head>
+	<title>{customTitle}</title>
+</svelte:head>
+
 <div
-	class="relative min-h-screen px-4 py-8 {highContrastMode
-		? 'bg-black text-white'
-		: 'bg-gradient-to-br from-blue-50 to-indigo-100'}"
+	class={`relative h-screen overflow-hidden px-4 py-4 md:px-6 md:py-6 ${
+		highContrastMode ? 'bg-black text-white' : 'bg-slate-100 text-slate-900'
+	}`}
+	style={`--dead-zone-size: ${bottomDeadZoneVh}vh; --safe-zone-size: calc(100vh - ${bottomDeadZoneVh}vh);`}
 >
-	<!-- Operator Controls Toggle -->
 	<button
 		on:click={() => (showOperatorSidebar = !showOperatorSidebar)}
-		class="fixed top-4 right-4 z-50 rounded-full p-3 shadow-lg transition-colors {highContrastMode
-			? 'border-4 border-yellow-400 bg-white text-black hover:bg-gray-200'
-			: 'bg-gray-800 text-white hover:bg-gray-900'}"
-		title="Toggle Operator Controls"
-		aria-label="Toggle Operator Controls"
+		class={`fixed right-4 top-4 z-50 inline-flex items-center gap-2 border px-4 py-3 text-sm font-semibold transition-colors ${
+			highContrastMode
+				? 'border-white bg-black text-white'
+				: 'border-slate-300 bg-white text-slate-900'
+		}`}
+		aria-label="Toggle operator controls"
 	>
-		<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"
@@ -584,9 +541,9 @@
 				d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
 			></path>
 		</svg>
+		<span>{showOperatorSidebar ? 'Hide controls' : 'Show controls'}</span>
 	</button>
 
-	<!-- Operator Sidebar -->
 	{#if showOperatorSidebar}
 		<OperatorSidebar
 			bind:customTitle
@@ -599,9 +556,12 @@
 			bind:showAnnouncements
 			bind:announcementPosition
 			bind:announcementFontSize
+			bind:is24Hour
 			bind:highContrastMode
 			bind:showDate
 			bind:showTimezone
+			bind:bottomDeadZoneVh
+			bind:showDeadZoneGuide
 			{activeCheckpoint}
 			{nextCheckpoint}
 			{timeSource}
@@ -609,26 +569,55 @@
 			{healthStatus}
 			{lastHealthCheck}
 			{responseTime}
-			on:saveSettings={saveExamSettings}
+			on:saveSettings={handleSettingsSave}
 			on:calculateCheckpoints={calculateCheckpointTimes}
 			on:addCustomCheckpoint={addCustomCheckpoint}
 			on:removeCustomCheckpoint={(event) => removeCustomCheckpoint(event.detail.id)}
 			on:toggleAnnouncementsEdit={toggleAnnouncementsEdit}
 			on:saveAnnouncements={saveAnnouncements}
 			on:clearAllSettings={clearAllSettings}
+			on:syncNow={manualHealthCheck}
 			on:close={() => (showOperatorSidebar = false)}
 		/>
 	{/if}
 
-	<div class="mx-auto">
-		<!-- Header for Exam Context -->
-		<header class="mb-8 text-center">
-			<h1 class="mb-2 text-3xl font-bold {highContrastMode ? 'text-yellow-400' : 'text-gray-900'}">
-				{customTitle}
-			</h1>
+	{#if showDeadZoneGuide && bottomDeadZoneVh > 0}
+		<div
+			class="safe-guide-pattern pointer-events-none fixed inset-x-0 bottom-0 z-30 border-t-4 border-dashed border-amber-400"
+			style:height={`calc(${bottomDeadZoneVh}vh)`}
+		>
+			<div class="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+				Blocked by room sightline
+			</div>
+		</div>
+	{/if}
+
+	<div class="mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden">
+		<section
+			class="flex min-h-0 flex-1 flex-col gap-6"
+			style="height: calc(var(--safe-zone-size) - 2rem);"
+		>
+		<header class="flex flex-col gap-4 pt-16 lg:flex-row lg:items-start lg:justify-between">
+			<div class="max-w-4xl">
+				<h1 class="text-4xl leading-tight md:text-6xl lg:text-7xl">{customTitle}</h1>
+			</div>
+			<div class="flex flex-wrap items-center gap-3">
+				<SystemStatus {healthStatus} {highContrastMode} />
+				{#if bottomDeadZoneVh > 0}
+					<div
+						class={`inline-flex items-center gap-2 border px-4 py-3 text-base font-semibold ${
+							highContrastMode
+								? 'border-white bg-black'
+								: 'border-slate-300 bg-white'
+						}`}
+					>
+						<span>Reserved bottom zone</span>
+						<span class="font-mono">{bottomDeadZoneVh}vh</span>
+					</div>
+				{/if}
+			</div>
 		</header>
 
-		<!-- Announcements Section - Top Position -->
 		{#if announcementPosition === 'top'}
 			<AnnouncementsBanner
 				{announcements}
@@ -639,17 +628,15 @@
 			/>
 		{/if}
 
-		<!-- Main Content Area - Flexible layout for left announcements -->
-		<div
-			class="flex flex-col {announcementPosition === 'left' &&
-			showAnnouncements &&
-			announcements.trim()
-				? 'xl:flex-row xl:gap-6'
-				: ''}"
+		<main
+			class={`grid min-h-0 flex-1 gap-6 ${
+				announcementPosition === 'left' && showAnnouncements && announcements.trim()
+					? 'xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]'
+					: ''
+			}`}
 		>
-			<!-- Announcements Section - Left Position -->
-			{#if announcementPosition === 'left'}
-				<div class="mb-6 xl:mb-0 xl:w-80 xl:max-w-80 xl:flex-shrink-0">
+			{#if announcementPosition === 'left' && showAnnouncements && announcements.trim()}
+				<div class="self-start overflow-hidden">
 					<AnnouncementsBanner
 						{announcements}
 						{showAnnouncements}
@@ -660,25 +647,31 @@
 				</div>
 			{/if}
 
-			<!-- Clock and Status Section -->
-			<div class="flex-1 xl:min-w-0">
+			<div class="min-w-0 overflow-hidden">
 				<ExamClock
 					{serverTime}
 					{serverDate}
 					{timezone}
 					{activeCheckpoint}
 					{nextCheckpoint}
-					{is24Hour}
 					{highContrastMode}
 					{examProgress}
 					{nextCheckpointProgress}
 					{showDate}
 					{showTimezone}
-					on:toggleTimeFormat={toggleTimeFormat}
 				/>
-
-				<SystemStatus {healthStatus} {highContrastMode} on:updateNow={manualHealthCheck} />
 			</div>
-		</div>
+		</main>
+		</section>
+
+		{#if bottomDeadZoneVh > 0}
+			<div
+				class={`mt-4 border-t ${
+					highContrastMode ? 'border-white bg-black' : 'border-slate-300 bg-slate-200'
+				}`}
+				style:height={`calc(${bottomDeadZoneVh}vh)`}
+				aria-hidden="true"
+			></div>
+		{/if}
 	</div>
 </div>
