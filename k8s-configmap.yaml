@@ -5,6 +5,6 @@ metadata:
   labels:
     app: exam-display
 data:
-  NTP_SERVER: "ntp.ui.ac.id"
-  TIMEZONE: "Asia/Jakarta"
-  NODE_ENV: "production"
+  NTP_SERVER: 'ntp.ui.ac.id'
+  TIMEZONE: 'Asia/Jakarta'
+  NODE_ENV: 'production'

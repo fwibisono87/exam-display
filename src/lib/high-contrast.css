@@ -1,63 +1,63 @@
 /* High Contrast Mode Styles */
 .high-contrast-form {
-  /* Improved visibility for all form elements */
-  --input-border-color: #000;
-  --input-text-color: #000;
-  --input-bg-color: #fff;
-  --input-focus-border-color: #2563eb;
-  --input-focus-ring-color: rgba(37, 99, 235, 0.5);
+	/* Improved visibility for all form elements */
+	--input-border-color: #000;
+	--input-text-color: #000;
+	--input-bg-color: #fff;
+	--input-focus-border-color: #2563eb;
+	--input-focus-ring-color: rgba(37, 99, 235, 0.5);
 }
 
 /* Clock Display - High contrast improvements */
 .font-mono {
-  font-family: "Roboto Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-variant-numeric: tabular-nums;
+	font-family: 'Roboto Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+	font-variant-numeric: tabular-nums;
 }
 
 body.high-contrast .font-mono {
-  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.5);
-  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.7));
+	-webkit-text-stroke: 1px rgba(0, 0, 0, 0.5);
+	filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.7));
 }
 
 /* Form elements with improved contrast */
-.high-contrast-form input[type="text"],
-.high-contrast-form input[type="time"],
-.high-contrast-form input[type="number"],
+.high-contrast-form input[type='text'],
+.high-contrast-form input[type='time'],
+.high-contrast-form input[type='number'],
 .high-contrast-form select,
 .high-contrast-form textarea {
-  border-color: var(--input-border-color) !important;
-  border-width: 2px !important;
-  color: var(--input-text-color) !important;
-  background-color: var(--input-bg-color) !important;
-  padding: 0.5rem !important;
+	border-color: var(--input-border-color) !important;
+	border-width: 2px !important;
+	color: var(--input-text-color) !important;
+	background-color: var(--input-bg-color) !important;
+	padding: 0.5rem !important;
 }
 
-.high-contrast-form input[type="text"]:focus,
-.high-contrast-form input[type="time"]:focus,
-.high-contrast-form input[type="number"]:focus,
+.high-contrast-form input[type='text']:focus,
+.high-contrast-form input[type='time']:focus,
+.high-contrast-form input[type='number']:focus,
 .high-contrast-form select:focus,
 .high-contrast-form textarea:focus {
-  border-color: var(--input-focus-border-color) !important;
-  box-shadow: 0 0 0 3px var(--input-focus-ring-color) !important;
-  outline: none !important;
+	border-color: var(--input-focus-border-color) !important;
+	box-shadow: 0 0 0 3px var(--input-focus-ring-color) !important;
+	outline: none !important;
 }
 
 /* Ensure color inputs have a visible border in high contrast mode */
-.high-contrast-form input[type="color"] {
-  border: 2px solid #000 !important;
-  outline: 1px solid white !important;
+.high-contrast-form input[type='color'] {
+	border: 2px solid #000 !important;
+	outline: 1px solid white !important;
 }
 
 /* Ensure checkbox labels are visible */
-.high-contrast-form input[type="checkbox"] + span {
-  color: #000 !important;
+.high-contrast-form input[type='checkbox'] + span {
+	color: #000 !important;
 }
 
 /* Improve visibility of range sliders */
-.high-contrast-form input[type="range"] {
-  height: 8px !important;
-  background: #ccc !important;
-  border: 1px solid #000 !important;
+.high-contrast-form input[type='range'] {
+	height: 8px !important;
+	background: #ccc !important;
+	border: 1px solid #000 !important;
 }
 
 /* Ensure text in preview areas is visible */
@@ -65,13 +65,13 @@ body.high-contrast .font-mono {
 .high-contrast-form .text-gray-600,
 .high-contrast-form .text-gray-700,
 .high-contrast-form .text-gray-800 {
-  color: #000 !important;
+	color: #000 !important;
 }
 
 /* High contrast styles for markdown content */
 body.high-contrast .markdown-content {
-  color: #000 !important;
-  font-weight: 600 !important; 
+	color: #000 !important;
+	font-weight: 600 !important;
 }
 
 body.high-contrast .markdown-content h1,
@@ -79,41 +79,41 @@ body.high-contrast .markdown-content h2,
 body.high-contrast .markdown-content h3,
 body.high-contrast .markdown-content h4,
 body.high-contrast .markdown-content h5 {
-  color: #000 !important;
-  font-weight: 800 !important;
-  -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.5);
+	color: #000 !important;
+	font-weight: 800 !important;
+	-webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.5);
 }
 
 body.high-contrast .markdown-content code {
-  background-color: #fff !important;
-  border: 1px solid #000 !important;
-  color: #000 !important;
+	background-color: #fff !important;
+	border: 1px solid #000 !important;
+	color: #000 !important;
 }
 
 body.high-contrast .markdown-content pre {
-  background-color: #fff !important;
-  border: 2px solid #000 !important;
+	background-color: #fff !important;
+	border: 2px solid #000 !important;
 }
 
 body.high-contrast .markdown-content a {
-  color: #0000EE !important;
-  text-decoration: underline !important;
-  text-decoration-thickness: 2px !important;
-  font-weight: bold !important;
+	color: #0000ee !important;
+	text-decoration: underline !important;
+	text-decoration-thickness: 2px !important;
+	font-weight: bold !important;
 }
 
 body.high-contrast .markdown-content blockquote {
-  border-left: 4px solid #000 !important;
-  background-color: #fff !important;
-  padding: 0.5em 1em !important;
+	border-left: 4px solid #000 !important;
+	background-color: #fff !important;
+	padding: 0.5em 1em !important;
 }
 
 body.high-contrast .markdown-content ul,
 body.high-contrast .markdown-content ol {
-  margin-left: 2.5em !important;
+	margin-left: 2.5em !important;
 }
 
 body.high-contrast .markdown-content li::marker {
-  color: #000 !important;
-  font-weight: bold !important;
+	color: #000 !important;
+	font-weight: bold !important;
 }

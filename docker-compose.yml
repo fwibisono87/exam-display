@@ -1,21 +1,22 @@
 services:
   exam-display:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     container_name: exam-display-app
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=production
       - PORT=3000
       - TIMEZONE=${TIMEZONE:-UTC}
-      - NTP_SERVER=${NTP_SERVER:-}
+      - NTP_SERVER=ntp.ui.ac.id
     env_file:
       - .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      test:
+        ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
