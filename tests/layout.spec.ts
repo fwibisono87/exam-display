@@ -130,12 +130,19 @@ for (const scenario of scenarios) {
 			await expect(page.getByTestId('clock-panel')).toBeVisible();
 			await expect(page.getByTestId('clock-time')).toHaveText(/\d{2}:\d{2}:\d{2}/);
 			await expect(page.getByText('Student Notice')).toHaveCount(0);
+			await expect(page.getByTestId('exam-progress')).toHaveCount(
+				scenario.name.includes('active and next checkpoints') ? 1 : 0
+			);
+			await expect(page.getByTestId('current-phase')).toHaveCount(
+				scenario.name.includes('active and next checkpoints') ? 1 : 0
+			);
 
 			const layout = await page.evaluate(() => {
 				const panel = document.querySelector('[data-testid="clock-panel"]');
 				const time = document.querySelector('[data-testid="clock-time"]');
 				const notice = document.querySelector('.announcement-copy');
-				const milestoneHeadings = Array.from(document.querySelectorAll('h2'));
+				const currentPhase = document.querySelector('[data-testid="current-phase"]');
+				const progressTrack = document.querySelector('[data-testid="exam-progress-track"]');
 
 				if (!(panel instanceof HTMLElement) || !(time instanceof HTMLElement)) {
 					throw new Error('Clock panel elements not found');
@@ -143,17 +150,22 @@ for (const scenario of scenarios) {
 
 				const panelBounds = panel.getBoundingClientRect();
 				const timeBounds = time.getBoundingClientRect();
+				const progressTrackBounds =
+					progressTrack instanceof HTMLElement ? progressTrack.getBoundingClientRect() : null;
 				const noticeFontSize =
 					notice instanceof HTMLElement ? parseFloat(getComputedStyle(notice).fontSize) : 0;
-				const milestoneFontSizes = milestoneHeadings.map((heading) =>
-					parseFloat(getComputedStyle(heading).fontSize)
-				);
+				const currentPhaseFontSize =
+					currentPhase instanceof HTMLElement
+						? parseFloat(getComputedStyle(currentPhase).fontSize)
+						: 0;
 
 				return {
 					clockFontSize: parseFloat(getComputedStyle(time).fontSize),
-					milestoneFontSizes,
+					currentPhaseFontSize,
 					noticeFontSize,
+					progressTrackWidth: progressTrackBounds?.width ?? 0,
 					viewportHeight: window.innerHeight,
+					panelWidth: panelBounds.width,
 					panelBottom: panelBounds.bottom,
 					panelTop: panelBounds.top,
 					timeHeight: timeBounds.height,
@@ -167,9 +179,9 @@ for (const scenario of scenarios) {
 			expect(layout.timeBottom).toBeLessThanOrEqual(layout.panelBottom);
 			expect(layout.timeHeight).toBeGreaterThan(0);
 			expect(layout.clockFontSize).toBeGreaterThan(layout.noticeFontSize);
-
-			for (const milestoneFontSize of layout.milestoneFontSizes) {
-				expect(layout.clockFontSize).toBeGreaterThan(milestoneFontSize);
+			if (layout.currentPhaseFontSize > 0) {
+				expect(layout.clockFontSize).toBeGreaterThan(layout.currentPhaseFontSize);
+				expect(layout.progressTrackWidth).toBeGreaterThan(layout.panelWidth * 0.7);
 			}
 		});
 	}

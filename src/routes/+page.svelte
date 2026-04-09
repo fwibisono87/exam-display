@@ -99,7 +99,6 @@
 	let activeCheckpoint: Checkpoint | null = null;
 	let nextCheckpoint: Checkpoint | null = null;
 	let examProgress = 0;
-	let nextCheckpointProgress = 0;
 
 	async function fetchServerTime() {
 		try {
@@ -140,7 +139,6 @@
 			currentTime = null;
 			serverTimeOffset = 0;
 			examProgress = 0;
-			nextCheckpointProgress = 0;
 		}
 	}
 
@@ -173,7 +171,6 @@
 	function calculateProgressValues() {
 		if (!currentTime || !examStartTime || !examEndTime) {
 			examProgress = 0;
-			nextCheckpointProgress = 0;
 			return;
 		}
 
@@ -189,40 +186,6 @@
 		const totalExamDuration = end.getTime() - start.getTime();
 		const elapsedTime = currentTime.getTime() - start.getTime();
 		examProgress = Math.min(100, Math.max(0, Math.floor((elapsedTime / totalExamDuration) * 100)));
-
-		if (nextCheckpoint && nextCheckpoint.time) {
-			const nextCheckpointDate = new Date(`${today}T${nextCheckpoint.time}`);
-
-			if (nextCheckpointDate < currentTime) {
-				nextCheckpointDate.setDate(nextCheckpointDate.getDate() + 1);
-			}
-
-			if (activeCheckpoint) {
-				const activeCheckpointDate = new Date(`${today}T${activeCheckpoint.time}`);
-
-				if (activeCheckpointDate > currentTime) {
-					activeCheckpointDate.setDate(activeCheckpointDate.getDate() - 1);
-				}
-
-				const segmentDuration = nextCheckpointDate.getTime() - activeCheckpointDate.getTime();
-				const elapsedSegmentTime = currentTime.getTime() - activeCheckpointDate.getTime();
-
-				nextCheckpointProgress = Math.min(
-					100,
-					Math.max(0, Math.floor((elapsedSegmentTime / segmentDuration) * 100))
-				);
-			} else {
-				const segmentDuration = nextCheckpointDate.getTime() - start.getTime();
-				const elapsedSegmentTime = currentTime.getTime() - start.getTime();
-
-				nextCheckpointProgress = Math.min(
-					100,
-					Math.max(0, Math.floor((elapsedSegmentTime / segmentDuration) * 100))
-				);
-			}
-		} else {
-			nextCheckpointProgress = 0;
-		}
 	}
 
 	async function checkServerHealth() {
@@ -660,7 +623,6 @@
 						{nextCheckpoint}
 						{highContrastMode}
 						{examProgress}
-						{nextCheckpointProgress}
 						{showDate}
 						{showTimezone}
 					/>
