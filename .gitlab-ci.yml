@@ -1,0 +1,42 @@
+stages:
+  - try-build
+  - deploy
+
+Try-Build:
+  stage: try-build
+  image:
+    name: quay.io/buildah/stable:latest
+    entrypoint: [ "" ]
+  variables:
+    BUILDAH_FORMAT: docker
+    STORAGE_DRIVER: vfs
+  script:
+    - buildah --version
+    - buildah bud --storage-driver=$STORAGE_DRIVER --format $BUILDAH_FORMAT --isolation chroot -t compnetcsui/exam-display:$CI_COMMIT_SHA .
+    - buildah push --storage-driver=$STORAGE_DRIVER compnetcsui/exam-display:$CI_COMMIT_SHA docker-archive:exam-display-image.tar:compnetcsui/exam-display:$CI_COMMIT_SHA
+  artifacts:
+    name: "exam-display-image-$CI_COMMIT_SHA"
+    paths:
+      - exam-display-image.tar
+    expire_in: 1 day
+  rules:
+    - when: always
+
+Publish:
+  stage: deploy
+  image:
+    name: quay.io/buildah/stable:latest
+    entrypoint: [ "" ]
+  variables:
+    BUILDAH_FORMAT: docker
+    STORAGE_DRIVER: vfs
+  script:
+    - buildah --version
+    - buildah pull --storage-driver=$STORAGE_DRIVER docker-archive:exam-display-image.tar
+    - buildah login -u "$DOCKER_USERNAME" -p "$DOCKER_TOKEN" docker.io
+    - buildah tag compnetcsui/exam-display:$CI_COMMIT_SHA compnetcsui/exam-display:latest
+    - buildah push --storage-driver=$STORAGE_DRIVER compnetcsui/exam-display:latest docker://compnetcsui/exam-display:latest
+  dependencies:
+    - Try-Build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
