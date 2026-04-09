@@ -33,6 +33,24 @@
 	$: mutedTextClass = highContrastMode ? 'text-slate-400' : 'text-slate-500';
 	$: subtleTextClass = highContrastMode ? 'text-slate-300' : 'text-slate-600';
 	$: inlineCardClass = highContrastMode ? 'border-white/10' : 'border-slate-200';
+	$: deadZoneLabel =
+		bottomDeadZoneVh === 0
+			? 'Off'
+			: bottomDeadZoneVh <= 8
+				? 'Shallow'
+				: bottomDeadZoneVh <= 16
+					? 'Moderate'
+					: 'Aggressive';
+
+	function setBottomDeadZone(value: number) {
+		bottomDeadZoneVh = value;
+		saveExamSettings();
+	}
+
+	function setAnnouncementFontSize(value: number) {
+		announcementFontSize = value;
+		saveExamSettings();
+	}
 
 	const dispatch = createEventDispatcher<{
 		saveSettings: void;
@@ -227,7 +245,12 @@
 							>
 								Bottom safe area
 							</label>
-							<span class="font-mono text-sm">{bottomDeadZoneVh}vh</span>
+							<div class="text-right">
+								<div class="font-mono text-sm">{bottomDeadZoneVh}vh</div>
+								<div class={`text-[0.7rem] uppercase tracking-[0.16em] ${mutedTextClass}`}>
+									{deadZoneLabel}
+								</div>
+							</div>
 						</div>
 						<input
 							id="dead-zone"
@@ -237,8 +260,77 @@
 							step="1"
 							bind:value={bottomDeadZoneVh}
 							on:input={saveExamSettings}
-							class="h-2 w-full cursor-pointer appearance-none rounded-none bg-slate-200"
+							style={`background-size: ${(bottomDeadZoneVh / 30) * 100}% 100%;`}
+							class="control-slider cursor-pointer"
 						/>
+						<div class={`mt-2 grid grid-cols-4 text-[0.7rem] uppercase tracking-[0.16em] ${mutedTextClass}`}>
+							<span>0</span>
+							<span class="text-center">10</span>
+							<span class="text-center">20</span>
+							<span class="text-right">30vh</span>
+						</div>
+						<div class="mt-3 flex flex-wrap gap-2">
+							<button
+								type="button"
+								on:click={() => setBottomDeadZone(0)}
+								class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+									bottomDeadZoneVh === 0
+										? highContrastMode
+											? 'border-white bg-white text-black'
+											: 'border-slate-900 bg-slate-900 text-white'
+										: highContrastMode
+											? 'border-white/20 text-white'
+											: 'border-slate-300 text-slate-700'
+								}`}
+							>
+								Off
+							</button>
+							<button
+								type="button"
+								on:click={() => setBottomDeadZone(8)}
+								class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+									bottomDeadZoneVh === 8
+										? highContrastMode
+											? 'border-white bg-white text-black'
+											: 'border-slate-900 bg-slate-900 text-white'
+										: highContrastMode
+											? 'border-white/20 text-white'
+											: 'border-slate-300 text-slate-700'
+								}`}
+							>
+								8vh
+							</button>
+							<button
+								type="button"
+								on:click={() => setBottomDeadZone(12)}
+								class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+									bottomDeadZoneVh === 12
+										? highContrastMode
+											? 'border-white bg-white text-black'
+											: 'border-slate-900 bg-slate-900 text-white'
+										: highContrastMode
+											? 'border-white/20 text-white'
+											: 'border-slate-300 text-slate-700'
+								}`}
+							>
+								12vh
+							</button>
+							<button
+								type="button"
+								on:click={() => setBottomDeadZone(16)}
+								class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+									bottomDeadZoneVh === 16
+										? highContrastMode
+											? 'border-white bg-white text-black'
+											: 'border-slate-900 bg-slate-900 text-white'
+										: highContrastMode
+											? 'border-white/20 text-white'
+											: 'border-slate-300 text-slate-700'
+								}`}
+							>
+								16vh
+							</button>
+						</div>
 						<p class={`mt-2 text-xs ${mutedTextClass}`}>
 							Lifts the important content above students or desks blocking the lower screen.
 						</p>
@@ -465,8 +557,61 @@
 						step="1"
 						bind:value={announcementFontSize}
 						on:input={saveExamSettings}
-						class="h-2 w-full cursor-pointer appearance-none rounded-none bg-slate-200"
+						style={`background-size: ${((announcementFontSize - 14) / (32 - 14)) * 100}% 100%;`}
+						class="control-slider cursor-pointer"
 					/>
+					<div class={`mt-2 grid grid-cols-3 text-[0.7rem] uppercase tracking-[0.16em] ${mutedTextClass}`}>
+						<span>14</span>
+						<span class="text-center">24</span>
+						<span class="text-right">32px</span>
+					</div>
+					<div class="mt-3 flex flex-wrap gap-2">
+						<button
+							type="button"
+							on:click={() => setAnnouncementFontSize(20)}
+							class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+								announcementFontSize === 20
+									? highContrastMode
+										? 'border-white bg-white text-black'
+										: 'border-slate-900 bg-slate-900 text-white'
+									: highContrastMode
+										? 'border-white/20 text-white'
+										: 'border-slate-300 text-slate-700'
+							}`}
+						>
+							20px
+						</button>
+						<button
+							type="button"
+							on:click={() => setAnnouncementFontSize(26)}
+							class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+								announcementFontSize === 26
+									? highContrastMode
+										? 'border-white bg-white text-black'
+										: 'border-slate-900 bg-slate-900 text-white'
+									: highContrastMode
+										? 'border-white/20 text-white'
+										: 'border-slate-300 text-slate-700'
+							}`}
+						>
+							26px
+						</button>
+						<button
+							type="button"
+							on:click={() => setAnnouncementFontSize(32)}
+							class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+								announcementFontSize === 32
+									? highContrastMode
+										? 'border-white bg-white text-black'
+										: 'border-slate-900 bg-slate-900 text-white'
+									: highContrastMode
+										? 'border-white/20 text-white'
+										: 'border-slate-300 text-slate-700'
+							}`}
+						>
+							Max
+						</button>
+					</div>
 				</div>
 
 				{#if isEditingAnnouncements}

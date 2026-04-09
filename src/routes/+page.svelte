@@ -526,7 +526,7 @@
 >
 	<button
 		on:click={() => (showOperatorSidebar = !showOperatorSidebar)}
-		class={`fixed right-4 top-4 z-50 inline-flex items-center gap-2 border px-4 py-3 text-sm font-semibold transition-colors ${
+		class={`fixed top-4 right-4 z-50 inline-flex items-center gap-2 border px-4 py-3 text-sm font-semibold transition-colors ${
 			highContrastMode
 				? 'border-white bg-black text-white'
 				: 'border-slate-300 bg-white text-slate-900'
@@ -586,82 +586,86 @@
 			class="safe-guide-pattern pointer-events-none fixed inset-x-0 bottom-0 z-30 border-t-4 border-dashed border-amber-400"
 			style:height={`calc(${bottomDeadZoneVh}vh)`}
 		>
-			<div class="px-4 py-2 text-right text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+			<div
+				class="px-4 py-2 text-right text-xs font-semibold tracking-[0.18em] text-amber-100 uppercase"
+			>
 				Blocked by room sightline
 			</div>
 		</div>
 	{/if}
 
-	<div class="mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden">
+	<div class="mx-auto flex h-full min-h-0 w-full max-w-[1800px] flex-col overflow-hidden">
 		<section
 			class="flex min-h-0 flex-1 flex-col gap-6"
 			style="height: calc(var(--safe-zone-size) - 2rem);"
 		>
-		<header class="flex flex-col gap-4 pt-16 lg:flex-row lg:items-start lg:justify-between">
-			<div class="max-w-4xl">
-				<h1 class="text-4xl leading-tight md:text-6xl lg:text-7xl">{customTitle}</h1>
-			</div>
-			<div class="flex flex-wrap items-center gap-3">
-				<SystemStatus {healthStatus} {highContrastMode} />
-				{#if bottomDeadZoneVh > 0}
-					<div
-						class={`inline-flex items-center gap-2 border px-4 py-3 text-base font-semibold ${
-							highContrastMode
-								? 'border-white bg-black'
-								: 'border-slate-300 bg-white'
-						}`}
-					>
-						<span>Reserved bottom zone</span>
-						<span class="font-mono">{bottomDeadZoneVh}vh</span>
-					</div>
-				{/if}
-			</div>
-		</header>
-
-		{#if announcementPosition === 'top'}
-			<AnnouncementsBanner
-				{announcements}
-				{showAnnouncements}
-				position="top"
-				fontSize={announcementFontSize}
-				{highContrastMode}
-			/>
-		{/if}
-
-		<main
-			class={`grid min-h-0 flex-1 gap-6 ${
-				announcementPosition === 'left' && showAnnouncements && announcements.trim()
-					? 'xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]'
-					: ''
-			}`}
-		>
-			{#if announcementPosition === 'left' && showAnnouncements && announcements.trim()}
-				<div class="self-start overflow-hidden">
-					<AnnouncementsBanner
-						{announcements}
-						{showAnnouncements}
-						position="left"
-						fontSize={announcementFontSize}
-						{highContrastMode}
-					/>
+			<header
+				class="flex shrink-0 flex-col gap-4 pt-16 lg:flex-row lg:items-start lg:justify-between"
+			>
+				<div class="min-w-0 flex-1">
+					<h1 class="text-[clamp(3.25rem,5vw,6rem)] leading-[0.92] break-words">
+						{customTitle}
+					</h1>
 				</div>
+				<div class="flex shrink-0 flex-wrap items-center gap-3">
+					<SystemStatus {healthStatus} {highContrastMode} />
+					{#if bottomDeadZoneVh > 0}
+						<div
+							class={`inline-flex items-center gap-2 border px-4 py-3 text-base font-semibold ${
+								highContrastMode ? 'border-white bg-black' : 'border-slate-300 bg-white'
+							}`}
+						>
+							<span>Reserved bottom zone</span>
+							<span class="font-mono">{bottomDeadZoneVh}vh</span>
+						</div>
+					{/if}
+				</div>
+			</header>
+
+			{#if announcementPosition === 'top'}
+				<AnnouncementsBanner
+					{announcements}
+					{showAnnouncements}
+					position="top"
+					fontSize={announcementFontSize}
+					{highContrastMode}
+				/>
 			{/if}
 
-			<div class="min-w-0 overflow-hidden">
-				<ExamClock
-					{serverTime}
-					{serverDate}
-					{timezone}
-					{activeCheckpoint}
-					{nextCheckpoint}
-					{highContrastMode}
-					{examProgress}
-					{nextCheckpointProgress}
-					{showDate}
-					{showTimezone}
-				/>
-			</div>
-		</main>
+			<main
+				class={`grid h-full min-h-0 flex-1 gap-6 overflow-hidden ${
+					announcementPosition === 'left' && showAnnouncements && announcements.trim()
+						? 'xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]'
+						: ''
+				}`}
+			>
+				{#if announcementPosition === 'left' && showAnnouncements && announcements.trim()}
+					<div class="self-start overflow-hidden">
+						<AnnouncementsBanner
+							{announcements}
+							{showAnnouncements}
+							position="left"
+							fontSize={announcementFontSize}
+							{highContrastMode}
+						/>
+					</div>
+				{/if}
+
+				<div class="h-full min-h-0 min-w-0 overflow-hidden">
+					<ExamClock
+						{serverTime}
+						{serverDate}
+						{timezone}
+						{activeCheckpoint}
+						{nextCheckpoint}
+						{highContrastMode}
+						{examProgress}
+						{nextCheckpointProgress}
+						{showDate}
+						{showTimezone}
+					/>
+				</div>
+			</main>
 		</section>
 
 		{#if bottomDeadZoneVh > 0}
