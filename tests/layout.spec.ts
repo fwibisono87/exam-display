@@ -110,7 +110,8 @@ const scenarios = [
 
 const viewports = [
 	{ width: 1920, height: 1080 },
-	{ width: 2880, height: 1080 }
+	{ width: 2880, height: 1080 },
+	{ width: 1920, height: 900 }
 ] as const;
 
 for (const scenario of scenarios) {
@@ -127,6 +128,7 @@ for (const scenario of scenarios) {
 
 			await page.goto('/');
 			await expect(page.getByTestId('clock-panel')).toBeVisible();
+			await expect(page.getByTestId('clock-time')).toHaveText(/\d{2}:\d{2}:\d{2}/);
 
 			const layout = await page.evaluate(() => {
 				const panel = document.querySelector('[data-testid="clock-panel"]');
@@ -143,6 +145,7 @@ for (const scenario of scenarios) {
 					viewportHeight: window.innerHeight,
 					panelBottom: panelBounds.bottom,
 					panelTop: panelBounds.top,
+					timeHeight: timeBounds.height,
 					timeBottom: timeBounds.bottom,
 					timeTop: timeBounds.top
 				};
@@ -151,6 +154,7 @@ for (const scenario of scenarios) {
 			expect(layout.panelBottom).toBeLessThanOrEqual(layout.viewportHeight);
 			expect(layout.timeTop).toBeGreaterThanOrEqual(layout.panelTop);
 			expect(layout.timeBottom).toBeLessThanOrEqual(layout.panelBottom);
+			expect(layout.timeHeight).toBeGreaterThan(0);
 		});
 	}
 }

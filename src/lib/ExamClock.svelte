@@ -136,7 +136,7 @@
 		<div
 			bind:this={timeElement}
 			data-testid="clock-time"
-			class="max-w-full overflow-hidden font-mono leading-none font-semibold tracking-[-0.055em] whitespace-nowrap"
+			class="max-w-full shrink-0 overflow-hidden font-mono leading-none font-semibold tracking-[-0.055em] whitespace-nowrap"
 			style:color={highContrastMode ? '#ffffff' : accentColor}
 		>
 			{serverTime || 'NTP unavailable'}
