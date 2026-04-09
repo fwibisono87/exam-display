@@ -129,10 +129,13 @@ for (const scenario of scenarios) {
 			await page.goto('/');
 			await expect(page.getByTestId('clock-panel')).toBeVisible();
 			await expect(page.getByTestId('clock-time')).toHaveText(/\d{2}:\d{2}:\d{2}/);
+			await expect(page.getByText('Student Notice')).toHaveCount(0);
 
 			const layout = await page.evaluate(() => {
 				const panel = document.querySelector('[data-testid="clock-panel"]');
 				const time = document.querySelector('[data-testid="clock-time"]');
+				const notice = document.querySelector('.announcement-copy');
+				const milestoneHeadings = Array.from(document.querySelectorAll('h2'));
 
 				if (!(panel instanceof HTMLElement) || !(time instanceof HTMLElement)) {
 					throw new Error('Clock panel elements not found');
@@ -140,8 +143,16 @@ for (const scenario of scenarios) {
 
 				const panelBounds = panel.getBoundingClientRect();
 				const timeBounds = time.getBoundingClientRect();
+				const noticeFontSize =
+					notice instanceof HTMLElement ? parseFloat(getComputedStyle(notice).fontSize) : 0;
+				const milestoneFontSizes = milestoneHeadings.map((heading) =>
+					parseFloat(getComputedStyle(heading).fontSize)
+				);
 
 				return {
+					clockFontSize: parseFloat(getComputedStyle(time).fontSize),
+					milestoneFontSizes,
+					noticeFontSize,
 					viewportHeight: window.innerHeight,
 					panelBottom: panelBounds.bottom,
 					panelTop: panelBounds.top,
@@ -155,6 +166,11 @@ for (const scenario of scenarios) {
 			expect(layout.timeTop).toBeGreaterThanOrEqual(layout.panelTop);
 			expect(layout.timeBottom).toBeLessThanOrEqual(layout.panelBottom);
 			expect(layout.timeHeight).toBeGreaterThan(0);
+			expect(layout.clockFontSize).toBeGreaterThan(layout.noticeFontSize);
+
+			for (const milestoneFontSize of layout.milestoneFontSizes) {
+				expect(layout.clockFontSize).toBeGreaterThan(milestoneFontSize);
+			}
 		});
 	}
 }

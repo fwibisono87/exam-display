@@ -139,15 +139,6 @@
 				: 'border-slate-300 bg-white text-slate-900'
 		}`}
 	>
-		<div
-			class={`border-b px-5 py-3 ${
-				highContrastMode
-					? 'border-white bg-yellow-300 text-black'
-					: 'border-slate-200 bg-slate-100'
-			}`}
-		>
-			<p class="text-sm font-semibold uppercase tracking-[0.18em] md:text-base">Student Notice</p>
-		</div>
 		<div class="px-5 py-4">
 			<div
 				class="announcement-copy leading-relaxed {position === 'left'
