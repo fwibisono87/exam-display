@@ -28,6 +28,7 @@
 	export let position: 'top' | 'left';
 	export let fontSize: number = 32;
 	export let highContrastMode: boolean = false;
+	export let maxHeight: string | null = null;
 
 	let md: MarkdownIt | null = null;
 	let renderedMarkdown = '';
@@ -133,13 +134,14 @@
 
 {#if showAnnouncements && announcements.trim()}
 	<section
-		class={`overflow-hidden border ${
+		class={`flex min-h-0 flex-col overflow-hidden border ${
 			highContrastMode
 				? 'border-white bg-black text-white shadow-none'
 				: 'border-slate-300 bg-white text-slate-900'
 		}`}
+		style:max-height={maxHeight || undefined}
 	>
-		<div class="px-5 py-4">
+		<div class="min-h-0 overflow-auto px-5 py-4">
 			<div
 				class="announcement-copy leading-relaxed {position === 'left'
 					? 'text-lg xl:text-xl'
