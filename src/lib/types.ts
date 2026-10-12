@@ -59,6 +59,7 @@ export interface PersistedSettings {
 	checkpoints: Checkpoint[];
 	customCheckpoints: Checkpoint[];
 	customTitle: string;
+	showTitle: boolean;
 	announcementPosition: AnnouncementPosition;
 	announcementFontSize: number;
 	is24Hour: boolean;

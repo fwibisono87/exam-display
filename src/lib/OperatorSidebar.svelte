@@ -21,6 +21,7 @@
 	export let healthStatus: string = 'checking...';
 	export let lastHealthCheck: string = '';
 	export let responseTime: number = 0;
+	export let showTitle: boolean = true;
 	export let showDate: boolean = false;
 	export let showTimezone: boolean = false;
 	export let bottomDeadZoneVh: number = 0;
@@ -105,7 +106,9 @@
 	}
 </script>
 
-<div class="pointer-events-none fixed inset-y-0 right-0 z-40 flex max-w-full items-start justify-end p-3 md:p-5">
+<div
+	class="pointer-events-none fixed inset-y-0 right-0 z-40 flex max-w-full items-start justify-end p-3 md:p-5"
+>
 	<div
 		class={`pointer-events-auto flex h-[calc(100vh-1.5rem)] w-[min(30rem,100vw-1.5rem)] flex-col overflow-hidden border shadow-2xl ${drawerClass}`}
 		role="dialog"
@@ -115,10 +118,15 @@
 		<div class={`border-b px-5 py-4 ${sectionClass}`}>
 			<div class="flex items-start justify-between gap-4">
 				<div>
-					<p class={`mb-2 text-[0.72rem] font-semibold uppercase tracking-[0.22em] ${subtleTextClass}`}>
+					<p
+						class={`mb-2 text-[0.72rem] font-semibold tracking-[0.22em] uppercase ${subtleTextClass}`}
+					>
 						Operator Console
 					</p>
-					<h2 id="operator-drawer-title" class="text-lg font-semibold normal-case tracking-[0.04em]">
+					<h2
+						id="operator-drawer-title"
+						class="text-lg font-semibold tracking-[0.04em] normal-case"
+					>
 						Display controls
 					</h2>
 					<p class={`mt-1 text-sm ${subtleTextClass}`}>
@@ -150,10 +158,8 @@
 			<section class={`mb-5 border p-4 ${sectionClass}`}>
 				<div class="mb-3 flex items-center justify-between gap-3">
 					<div>
-						<h3 class="text-sm font-semibold normal-case tracking-[0.05em]">Status</h3>
-						<p class={`mt-1 text-xs ${mutedTextClass}`}>
-							Verify sync before the exam starts.
-						</p>
+						<h3 class="text-sm font-semibold tracking-[0.05em] normal-case">Status</h3>
+						<p class={`mt-1 text-xs ${mutedTextClass}`}>Verify sync before the exam starts.</p>
 					</div>
 					<button
 						on:click={syncNow}
@@ -164,19 +170,27 @@
 				</div>
 				<div class="grid grid-cols-2 gap-3 text-sm">
 					<div class={`rounded-none border p-3 ${inlineCardClass}`}>
-						<p class={`text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>Health</p>
+						<p class={`text-[0.68rem] font-semibold tracking-[0.18em] uppercase ${mutedTextClass}`}>
+							Health
+						</p>
 						<p class="mt-2 font-medium">{healthStatus}</p>
 					</div>
 					<div class={`rounded-none border p-3 ${inlineCardClass}`}>
-						<p class={`text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>Time source</p>
+						<p class={`text-[0.68rem] font-semibold tracking-[0.18em] uppercase ${mutedTextClass}`}>
+							Time source
+						</p>
 						<p class="mt-2 font-medium">{timeSource || 'error'}</p>
 					</div>
 					<div class={`rounded-none border p-3 ${inlineCardClass}`}>
-						<p class={`text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>Last check</p>
+						<p class={`text-[0.68rem] font-semibold tracking-[0.18em] uppercase ${mutedTextClass}`}>
+							Last check
+						</p>
 						<p class="mt-2 font-medium">{lastHealthCheck || 'N/A'}</p>
 					</div>
 					<div class={`rounded-none border p-3 ${inlineCardClass}`}>
-						<p class={`text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>Response</p>
+						<p class={`text-[0.68rem] font-semibold tracking-[0.18em] uppercase ${mutedTextClass}`}>
+							Response
+						</p>
 						<p class="mt-2 font-medium">{responseTime}ms</p>
 					</div>
 				</div>
@@ -189,14 +203,18 @@
 
 			<section class={`mb-5 border p-4 ${sectionClass}`}>
 				<div class="mb-4">
-					<h3 class="text-sm font-semibold normal-case tracking-[0.05em]">Display</h3>
+					<h3 class="text-sm font-semibold tracking-[0.05em] normal-case">Display</h3>
 					<p class={`mt-1 text-xs ${mutedTextClass}`}>
 						Keep the screen legible first. Decoration is secondary.
 					</p>
 				</div>
 				<div class="space-y-4">
 					<div>
-						<label for="custom-title" class={`mb-1 block text-xs font-medium uppercase tracking-[0.14em] ${mutedTextClass}`}>Display title</label>
+						<label
+							for="custom-title"
+							class={`mb-1 block text-xs font-medium tracking-[0.14em] uppercase ${mutedTextClass}`}
+							>Display title</label
+						>
 						<input
 							id="custom-title"
 							type="text"
@@ -207,6 +225,12 @@
 					</div>
 
 					<div class="grid grid-cols-2 gap-3">
+						<label class={`border p-3 text-sm ${inlineCardClass}`}>
+							<div class="flex items-center justify-between gap-2">
+								<span>Show title</span>
+								<input type="checkbox" bind:checked={showTitle} on:change={saveExamSettings} />
+							</div>
+						</label>
 						<label class={`border p-3 text-sm ${inlineCardClass}`}>
 							<div class="flex items-center justify-between gap-2">
 								<span>24-hour clock</span>
@@ -241,13 +265,13 @@
 						<div class="mb-2 flex items-center justify-between gap-3">
 							<label
 								for="dead-zone"
-								class={`text-xs font-medium uppercase tracking-[0.14em] ${mutedTextClass}`}
+								class={`text-xs font-medium tracking-[0.14em] uppercase ${mutedTextClass}`}
 							>
 								Bottom safe area
 							</label>
 							<div class="text-right">
 								<div class="font-mono text-sm">{bottomDeadZoneVh}vh</div>
-								<div class={`text-[0.7rem] uppercase tracking-[0.16em] ${mutedTextClass}`}>
+								<div class={`text-[0.7rem] tracking-[0.16em] uppercase ${mutedTextClass}`}>
 									{deadZoneLabel}
 								</div>
 							</div>
@@ -263,7 +287,9 @@
 							style={`background-size: ${(bottomDeadZoneVh / 30) * 100}% 100%;`}
 							class="control-slider cursor-pointer"
 						/>
-						<div class={`mt-2 grid grid-cols-4 text-[0.7rem] uppercase tracking-[0.16em] ${mutedTextClass}`}>
+						<div
+							class={`mt-2 grid grid-cols-4 text-[0.7rem] tracking-[0.16em] uppercase ${mutedTextClass}`}
+						>
 							<span>0</span>
 							<span class="text-center">10</span>
 							<span class="text-center">20</span>
@@ -273,7 +299,7 @@
 							<button
 								type="button"
 								on:click={() => setBottomDeadZone(0)}
-								class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+								class={`border px-3 py-2 text-xs font-semibold tracking-[0.12em] uppercase ${
 									bottomDeadZoneVh === 0
 										? highContrastMode
 											? 'border-white bg-white text-black'
@@ -288,7 +314,7 @@
 							<button
 								type="button"
 								on:click={() => setBottomDeadZone(8)}
-								class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+								class={`border px-3 py-2 text-xs font-semibold tracking-[0.12em] uppercase ${
 									bottomDeadZoneVh === 8
 										? highContrastMode
 											? 'border-white bg-white text-black'
@@ -303,7 +329,7 @@
 							<button
 								type="button"
 								on:click={() => setBottomDeadZone(12)}
-								class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+								class={`border px-3 py-2 text-xs font-semibold tracking-[0.12em] uppercase ${
 									bottomDeadZoneVh === 12
 										? highContrastMode
 											? 'border-white bg-white text-black'
@@ -318,7 +344,7 @@
 							<button
 								type="button"
 								on:click={() => setBottomDeadZone(16)}
-								class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+								class={`border px-3 py-2 text-xs font-semibold tracking-[0.12em] uppercase ${
 									bottomDeadZoneVh === 16
 										? highContrastMode
 											? 'border-white bg-white text-black'
@@ -350,14 +376,18 @@
 
 			<section class={`mb-5 border p-4 ${sectionClass}`}>
 				<div class="mb-4">
-					<h3 class="text-sm font-semibold normal-case tracking-[0.05em]">Exam timing</h3>
+					<h3 class="text-sm font-semibold tracking-[0.05em] normal-case">Exam timing</h3>
 					<p class={`mt-1 text-xs ${mutedTextClass}`}>
 						Start and end times drive the display state.
 					</p>
 				</div>
 				<div class="grid grid-cols-2 gap-3">
 					<div>
-						<label for="exam-start" class={`mb-1 block text-xs font-medium uppercase tracking-[0.14em] ${mutedTextClass}`}>Start</label>
+						<label
+							for="exam-start"
+							class={`mb-1 block text-xs font-medium tracking-[0.14em] uppercase ${mutedTextClass}`}
+							>Start</label
+						>
 						<input
 							id="exam-start"
 							type="time"
@@ -367,7 +397,11 @@
 						/>
 					</div>
 					<div>
-						<label for="exam-end" class={`mb-1 block text-xs font-medium uppercase tracking-[0.14em] ${mutedTextClass}`}>End</label>
+						<label
+							for="exam-end"
+							class={`mb-1 block text-xs font-medium tracking-[0.14em] uppercase ${mutedTextClass}`}
+							>End</label
+						>
 						<input
 							id="exam-end"
 							type="time"
@@ -379,7 +413,7 @@
 				</div>
 				<button
 					on:click={calculateCheckpointTimes}
-					class={`mt-3 rounded-none px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] transition-colors ${
+					class={`mt-3 rounded-none px-4 py-3 text-xs font-semibold tracking-[0.14em] uppercase transition-colors ${
 						highContrastMode
 							? 'bg-white text-black hover:bg-slate-100'
 							: 'bg-slate-900 text-white hover:bg-black'
@@ -429,7 +463,9 @@
 
 				<div class="mt-4">
 					<div class="mb-2 flex items-center justify-between">
-						<h4 class={`text-xs font-medium uppercase tracking-[0.14em] ${mutedTextClass}`}>Custom milestones</h4>
+						<h4 class={`text-xs font-medium tracking-[0.14em] uppercase ${mutedTextClass}`}>
+							Custom milestones
+						</h4>
 						<button
 							on:click={addCustomCheckpoint}
 							class={`rounded-none border px-3 py-2 text-xs font-semibold transition-colors ${
@@ -457,7 +493,7 @@
 									/>
 									<button
 										on:click={() => removeCustomCheckpoint(checkpoint.id)}
-										class="text-xs font-semibold uppercase tracking-[0.12em] text-red-600"
+										class="text-xs font-semibold tracking-[0.12em] text-red-600 uppercase"
 									>
 										Remove
 									</button>
@@ -503,14 +539,14 @@
 			<section class={`mb-5 border p-4 ${sectionClass}`}>
 				<div class="mb-4 flex items-start justify-between gap-3">
 					<div>
-						<h3 class="text-sm font-semibold normal-case tracking-[0.05em]">Student notice</h3>
+						<h3 class="text-sm font-semibold tracking-[0.05em] normal-case">Student notice</h3>
 						<p class={`mt-1 text-xs ${mutedTextClass}`}>
 							Keep this short. Long copy hurts distance readability.
 						</p>
 					</div>
 					<button
 						on:click={toggleAnnouncementsEdit}
-						class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+						class={`border px-3 py-2 text-xs font-semibold tracking-[0.12em] uppercase ${
 							highContrastMode ? 'border-white' : 'border-slate-300'
 						}`}
 					>
@@ -522,11 +558,19 @@
 					<label class={`border p-3 text-sm ${inlineCardClass}`}>
 						<div class="flex items-center justify-between gap-2">
 							<span>Show notice</span>
-							<input type="checkbox" bind:checked={showAnnouncements} on:change={saveExamSettings} />
+							<input
+								type="checkbox"
+								bind:checked={showAnnouncements}
+								on:change={saveExamSettings}
+							/>
 						</div>
 					</label>
 					<div>
-						<label for="notice-position" class={`mb-1 block text-xs font-medium uppercase tracking-[0.14em] ${mutedTextClass}`}>Placement</label>
+						<label
+							for="notice-position"
+							class={`mb-1 block text-xs font-medium tracking-[0.14em] uppercase ${mutedTextClass}`}
+							>Placement</label
+						>
 						<select
 							id="notice-position"
 							bind:value={announcementPosition}
@@ -541,12 +585,12 @@
 
 				<div class="mb-3">
 					<div class="mb-2 flex items-center justify-between gap-3">
-							<label
-								for="notice-font"
-								class={`text-xs font-medium uppercase tracking-[0.14em] ${mutedTextClass}`}
-							>
-								Notice size
-							</label>
+						<label
+							for="notice-font"
+							class={`text-xs font-medium tracking-[0.14em] uppercase ${mutedTextClass}`}
+						>
+							Notice size
+						</label>
 						<span class="font-mono text-sm">{announcementFontSize}px</span>
 					</div>
 					<input
@@ -560,7 +604,9 @@
 						style={`background-size: ${((announcementFontSize - 14) / (32 - 14)) * 100}% 100%;`}
 						class="control-slider cursor-pointer"
 					/>
-					<div class={`mt-2 grid grid-cols-3 text-[0.7rem] uppercase tracking-[0.16em] ${mutedTextClass}`}>
+					<div
+						class={`mt-2 grid grid-cols-3 text-[0.7rem] tracking-[0.16em] uppercase ${mutedTextClass}`}
+					>
 						<span>14</span>
 						<span class="text-center">24</span>
 						<span class="text-right">32px</span>
@@ -569,7 +615,7 @@
 						<button
 							type="button"
 							on:click={() => setAnnouncementFontSize(20)}
-							class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+							class={`border px-3 py-2 text-xs font-semibold tracking-[0.12em] uppercase ${
 								announcementFontSize === 20
 									? highContrastMode
 										? 'border-white bg-white text-black'
@@ -584,7 +630,7 @@
 						<button
 							type="button"
 							on:click={() => setAnnouncementFontSize(26)}
-							class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+							class={`border px-3 py-2 text-xs font-semibold tracking-[0.12em] uppercase ${
 								announcementFontSize === 26
 									? highContrastMode
 										? 'border-white bg-white text-black'
@@ -599,7 +645,7 @@
 						<button
 							type="button"
 							on:click={() => setAnnouncementFontSize(32)}
-							class={`border px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] ${
+							class={`border px-3 py-2 text-xs font-semibold tracking-[0.12em] uppercase ${
 								announcementFontSize === 32
 									? highContrastMode
 										? 'border-white bg-white text-black'
@@ -623,14 +669,16 @@
 					></textarea>
 					<button
 						on:click={saveAnnouncements}
-						class="mt-3 rounded-none bg-blue-600 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-blue-700"
+						class="mt-3 rounded-none bg-blue-600 px-4 py-3 text-xs font-semibold tracking-[0.14em] text-white uppercase transition-colors hover:bg-blue-700"
 					>
 						Save notice
 					</button>
 				{:else}
-					<div class={`rounded-none border p-3 text-sm ${inlineCardClass} ${
-						highContrastMode ? 'text-slate-200' : 'text-slate-700'
-					}`}>
+					<div
+						class={`rounded-none border p-3 text-sm ${inlineCardClass} ${
+							highContrastMode ? 'text-slate-200' : 'text-slate-700'
+						}`}
+					>
 						{#if announcements.trim()}
 							{announcements}
 						{:else}
@@ -642,22 +690,36 @@
 
 			<section class={`mb-5 border p-4 ${sectionClass}`}>
 				<div class="mb-3">
-					<h3 class="text-sm font-semibold normal-case tracking-[0.05em]">Live phase</h3>
+					<h3 class="text-sm font-semibold tracking-[0.05em] normal-case">Live phase</h3>
 				</div>
 				<div class="space-y-3 text-sm">
 					<div class={`rounded-none border p-3 ${inlineCardClass}`}>
-						<p class={`text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>Active</p>
-						<p class="mt-2 font-medium">{activeCheckpoint ? `${activeCheckpoint.name} (${activeCheckpoint.time})` : 'No active milestone'}</p>
+						<p class={`text-[0.68rem] font-semibold tracking-[0.18em] uppercase ${mutedTextClass}`}>
+							Active
+						</p>
+						<p class="mt-2 font-medium">
+							{activeCheckpoint
+								? `${activeCheckpoint.name} (${activeCheckpoint.time})`
+								: 'No active milestone'}
+						</p>
 					</div>
 					<div class={`rounded-none border p-3 ${inlineCardClass}`}>
-						<p class={`text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${mutedTextClass}`}>Next</p>
-						<p class="mt-2 font-medium">{nextCheckpoint ? `${nextCheckpoint.name} (${nextCheckpoint.time})` : 'No upcoming milestone'}</p>
+						<p class={`text-[0.68rem] font-semibold tracking-[0.18em] uppercase ${mutedTextClass}`}>
+							Next
+						</p>
+						<p class="mt-2 font-medium">
+							{nextCheckpoint
+								? `${nextCheckpoint.name} (${nextCheckpoint.time})`
+								: 'No upcoming milestone'}
+						</p>
 					</div>
 				</div>
 			</section>
 
 			<section class={`border p-4 ${highContrastMode ? 'border-red-300' : 'border-red-300'}`}>
-				<h3 class={`text-sm font-semibold normal-case tracking-[0.05em] ${highContrastMode ? 'text-red-300' : 'text-red-700'}`}>
+				<h3
+					class={`text-sm font-semibold tracking-[0.05em] normal-case ${highContrastMode ? 'text-red-300' : 'text-red-700'}`}
+				>
 					Reset
 				</h3>
 				<p class={`mt-2 text-xs ${highContrastMode ? 'text-red-200' : 'text-red-700'}`}>
@@ -665,7 +727,7 @@
 				</p>
 				<button
 					on:click={clearAllSettings}
-					class="mt-3 rounded-none bg-red-600 px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-700"
+					class="mt-3 rounded-none bg-red-600 px-4 py-3 text-xs font-semibold tracking-[0.14em] text-white uppercase transition-colors hover:bg-red-700"
 				>
 					Clear all settings
 				</button>

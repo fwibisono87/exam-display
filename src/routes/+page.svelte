@@ -1,681 +1,365 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
-	import AnnouncementsBanner from '$lib/AnnouncementsBanner.svelte';
-	import ExamClock from '$lib/ExamClock.svelte';
-	import OperatorSidebar from '$lib/OperatorSidebar.svelte';
-	import SystemStatus from '$lib/SystemStatus.svelte';
-	import type {
-		AnnouncementPosition,
-		Checkpoint,
-		HealthResponse,
-		NtpInfo,
-		PersistedSettings,
-		TimeResponse,
-		TimeSource
-	} from '$lib/types';
+	import { onMount } from 'svelte';
+	import ProjectorDisplay from '$lib/ProjectorDisplay.svelte';
+	import OperatorConsole from '$lib/OperatorConsole.svelte';
+	import {
+		STORAGE_KEY,
+		defaultConfig,
+		loadState,
+		toSeconds,
+		type ProjectorConfig,
+		type Rehearsal
+	} from '$lib/projector-model';
+	import type { NtpInfo, TimeResponse, TimeSource } from '$lib/types';
 
-	const DEFAULT_TITLE = 'Exam Time Display';
-	const DEFAULT_ANNOUNCEMENT_POSITION: AnnouncementPosition = 'top';
-	const DEFAULT_ANNOUNCEMENT_FONT_SIZE = 32;
+	let cfg = defaultConfig();
+	let rehearsal: Rehearsal = { enabled: false, base: 0, at: 0, fail: false };
+	let now = 0;
+	let timeSource: TimeSource = 'error';
+	let ntpInfo: NtpInfo = { server: 'ntp.ui.ac.id' };
+	let timezone = 'Asia/Jakarta';
+	let healthStatus = 'checking…';
+	let open = false;
+	let calibration = false;
+	let noticeOverflow = false;
+	let controlsChannel: BroadcastChannel | undefined;
+	let consoleOnly = false;
+	let chrome = true;
+	let storageWarning = '';
+	let mounted = false;
+	let liveTimestamp: number | null = null;
+	let liveAnchor = 0;
+	let syncTimer: ReturnType<typeof setTimeout>;
+	let hideTimer: ReturnType<typeof setTimeout>;
+	let stopped = false;
+	let syncing = false;
+	const pendingRequests = new Set<AbortController>();
 
-	function createDefaultCheckpoints(): Checkpoint[] {
-		return [
-			{
-				id: 'midpoint',
-				name: 'Exam Midpoint',
-				time: '',
-				enabled: true,
-				emoji: '⏰',
-				color: '#0F62FE',
-				isCustom: false
-			},
-			{
-				id: 'final30',
-				name: 'Final 30 Minutes',
-				time: '',
-				enabled: true,
-				emoji: '⚠️',
-				color: '#FF832B',
-				isCustom: false
-			},
-			{
-				id: 'final15',
-				name: 'Final 15 Minutes',
-				time: '',
-				enabled: true,
-				emoji: '🔔',
-				color: '#DA1E28',
-				isCustom: false
-			},
-			{
-				id: 'final5',
-				name: 'Final 5 Minutes',
-				time: '',
-				enabled: true,
-				emoji: '🚨',
-				color: '#A2191F',
-				isCustom: false
-			}
-		];
+	$: clockError = rehearsal.enabled && rehearsal.fail;
+	$: ntpUnavailable = !rehearsal.enabled && timeSource === 'error';
+
+	function secondsInTimezone(timestamp: number) {
+		const parts = new Intl.DateTimeFormat('en-GB', {
+			timeZone: timezone,
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hourCycle: 'h23'
+		}).formatToParts(timestamp);
+		const part = (type: string) => Number(parts.find((p) => p.type === type)?.value || 0);
+		return part('hour') * 3600 + part('minute') * 60 + part('second');
 	}
 
-	let serverTime = '';
-	let serverDate = '';
-	let timezone = '';
-	let healthStatus = 'checking...';
-	let lastHealthCheck = '';
-	let responseTime = 0;
-	let timeSource: TimeSource = 'error';
-	let ntpInfo: NtpInfo = {};
-	let is24Hour = true;
-	let interval: ReturnType<typeof setInterval>;
-	let healthInterval: ReturnType<typeof setInterval>;
-	let clockInterval: ReturnType<typeof setInterval>;
-	let isHealthCheckInRecoveryMode = false;
-	let currentTime: Date | null = null;
-	let serverTimeOffset = 0;
-	let announcements = '';
-	let isEditingAnnouncements = false;
-	let showAnnouncements = true;
-	let announcementPosition: AnnouncementPosition = DEFAULT_ANNOUNCEMENT_POSITION;
-	let announcementFontSize = DEFAULT_ANNOUNCEMENT_FONT_SIZE;
-	let highContrastMode = false;
-	let showOperatorSidebar = false;
-	let customTitle = DEFAULT_TITLE;
-	let showDate = false;
-	let showTimezone = false;
-	let bottomDeadZoneVh = 0;
-	let showDeadZoneGuide = false;
+	function tick() {
+		if (rehearsal.enabled) {
+			now = rehearsal.base + Math.max(0, Math.floor((Date.now() - rehearsal.at) / 1000));
+		} else if (liveTimestamp !== null && timeSource !== 'error') {
+			now = secondsInTimezone(liveTimestamp + performance.now() - liveAnchor);
+		} else {
+			now = secondsInTimezone(Date.now());
+		}
+	}
 
-	let examStartTime = '';
-	let examEndTime = '';
-	let examMidpointTime = '';
-	let final30Time = '';
-	let final15Time = '';
-	let final5Time = '';
-
-	let checkpoints: Checkpoint[] = createDefaultCheckpoints();
-	let customCheckpoints: Checkpoint[] = [];
-	let activeCheckpoint: Checkpoint | null = null;
-	let nextCheckpoint: Checkpoint | null = null;
-	let examProgress = 0;
-	let nextCheckpointProgress = 0;
-
-	async function fetchServerTime() {
+	async function syncTime() {
+		if (syncing || stopped) return;
+		syncing = true;
+		clearTimeout(syncTimer);
+		const controller = new AbortController();
+		pendingRequests.add(controller);
+		const timeout = setTimeout(() => controller.abort(), 10000);
 		try {
-			const response = await fetch('/api/time');
+			const response = await fetch('/api/time', { signal: controller.signal });
 			const data: TimeResponse = await response.json();
-
-			if (!response.ok || !data.time) {
+			const timestamp = Date.parse(data.time || '');
+			if (
+				!response.ok ||
+				!Number.isFinite(timestamp) ||
+				!['ntp', 'ntp_partial'].includes(data.timeSource || '')
+			) {
 				throw new Error(data.ntp?.errorDetails || data.ntp?.error || 'NTP time unavailable');
 			}
-
-			const serverDateValue = new Date(data.time);
-			const clientDate = new Date();
-
-			serverTimeOffset = serverDateValue.getTime() - clientDate.getTime();
-			timeSource = data.timeSource || 'error';
-			ntpInfo = data.ntp || {};
-			updateTimeDisplay();
-
-			const timezoneAbbr = serverDateValue
-				.toLocaleString('en-US', {
-					timeZoneName: 'short'
-				})
-				.split(' ')
-				.pop();
-
-			timezone = `${data.timezone} (${timezoneAbbr})`;
+			if (stopped) return;
+			// Validate the server timezone before accepting this sample.
+			new Intl.DateTimeFormat('en-GB', { timeZone: data.timezone }).format(timestamp);
+			timezone = data.timezone;
+			liveTimestamp = timestamp;
+			liveAnchor = performance.now();
+			timeSource = data.timeSource as TimeSource;
+			ntpInfo = data.ntp || { server: 'ntp.ui.ac.id' };
+			tick();
 		} catch (error) {
-			console.error('Error fetching server time:', error);
-			serverTime = 'NTP unavailable';
-			serverDate = 'Unable to obtain ntp.ui.ac.id time';
-			timezone = '';
+			if (stopped) return;
+			liveTimestamp = null;
 			timeSource = 'error';
 			ntpInfo = {
 				server: 'ntp.ui.ac.id',
 				error: 'time_unavailable',
-				errorDetails: error instanceof Error ? error.message : 'Unknown error fetching time'
+				errorDetails: error instanceof Error ? error.message : 'NTP unavailable'
 			};
-			currentTime = null;
-			serverTimeOffset = 0;
-			examProgress = 0;
-			nextCheckpointProgress = 0;
+			tick();
+		} finally {
+			clearTimeout(timeout);
+			pendingRequests.delete(controller);
+			syncing = false;
+			if (!stopped) syncTimer = setTimeout(syncTime, timeSource === 'error' ? 30000 : 300000);
 		}
 	}
 
-	function updateTimeDisplay() {
-		if (timeSource === 'error') {
-			currentTime = null;
-			return;
-		}
-
-		const now = new Date();
-		currentTime = new Date(now.getTime() + serverTimeOffset);
-		updateCheckpointStatus();
-		calculateProgressValues();
-
-		serverTime = currentTime.toLocaleString('en-US', {
-			hour: '2-digit',
-			minute: '2-digit',
-			second: '2-digit',
-			hour12: !is24Hour
-		});
-
-		serverDate = currentTime.toLocaleString('en-US', {
-			weekday: 'long',
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		});
-	}
-
-	function calculateProgressValues() {
-		if (!currentTime || !examStartTime || !examEndTime) {
-			examProgress = 0;
-			nextCheckpointProgress = 0;
-			return;
-		}
-
-		const today = currentTime.toISOString().split('T')[0];
-		const start = new Date(`${today}T${examStartTime}`);
-		let end = new Date(`${today}T${examEndTime}`);
-
-		if (end < start) {
-			end = new Date(`${today}T${examEndTime}`);
-			end.setDate(end.getDate() + 1);
-		}
-
-		const totalExamDuration = end.getTime() - start.getTime();
-		const elapsedTime = currentTime.getTime() - start.getTime();
-		examProgress = Math.min(100, Math.max(0, Math.floor((elapsedTime / totalExamDuration) * 100)));
-
-		if (nextCheckpoint && nextCheckpoint.time) {
-			const nextCheckpointDate = new Date(`${today}T${nextCheckpoint.time}`);
-
-			if (nextCheckpointDate < currentTime) {
-				nextCheckpointDate.setDate(nextCheckpointDate.getDate() + 1);
-			}
-
-			if (activeCheckpoint) {
-				const activeCheckpointDate = new Date(`${today}T${activeCheckpoint.time}`);
-
-				if (activeCheckpointDate > currentTime) {
-					activeCheckpointDate.setDate(activeCheckpointDate.getDate() - 1);
-				}
-
-				const segmentDuration = nextCheckpointDate.getTime() - activeCheckpointDate.getTime();
-				const elapsedSegmentTime = currentTime.getTime() - activeCheckpointDate.getTime();
-
-				nextCheckpointProgress = Math.min(
-					100,
-					Math.max(0, Math.floor((elapsedSegmentTime / segmentDuration) * 100))
-				);
-			} else {
-				const segmentDuration = nextCheckpointDate.getTime() - start.getTime();
-				const elapsedSegmentTime = currentTime.getTime() - start.getTime();
-
-				nextCheckpointProgress = Math.min(
-					100,
-					Math.max(0, Math.floor((elapsedSegmentTime / segmentDuration) * 100))
-				);
-			}
-		} else {
-			nextCheckpointProgress = 0;
-		}
-	}
-
-	async function checkServerHealth() {
+	async function checkHealth() {
+		const controller = new AbortController();
+		pendingRequests.add(controller);
+		const timeout = setTimeout(() => controller.abort(), 10000);
 		try {
-			const startTime = Date.now();
-			const response = await fetch('/api/health');
-			const endTime = Date.now();
-			const data: HealthResponse = await response.json();
-
-			healthStatus = data.status;
-			lastHealthCheck = new Date(data.timestamp).toLocaleTimeString();
-			responseTime = endTime - startTime;
-
-			if (healthStatus === 'healthy' && isHealthCheckInRecoveryMode) {
-				isHealthCheckInRecoveryMode = false;
-				setHealthCheckInterval(600000);
-			} else if (healthStatus !== 'healthy' && !isHealthCheckInRecoveryMode) {
-				isHealthCheckInRecoveryMode = true;
-				setHealthCheckInterval(30000);
-			}
-		} catch (error) {
-			console.error('Error checking server health:', error);
-			healthStatus = 'unhealthy';
-			lastHealthCheck = new Date().toLocaleTimeString();
-
-			if (!isHealthCheckInRecoveryMode) {
-				isHealthCheckInRecoveryMode = true;
-				setHealthCheckInterval(30000);
-			}
+			const response = await fetch('/api/health', { signal: controller.signal });
+			const data = await response.json();
+			if (!stopped) healthStatus = response.ok ? data.status : 'unhealthy';
+		} catch {
+			if (!stopped) healthStatus = 'unhealthy';
+		} finally {
+			clearTimeout(timeout);
+			pendingRequests.delete(controller);
 		}
 	}
 
-	function setHealthCheckInterval(intervalMs: number) {
-		if (healthInterval) {
-			clearInterval(healthInterval);
-		}
-
-		healthInterval = setInterval(checkServerHealth, intervalMs);
-	}
-
-	function manualHealthCheck() {
-		fetchServerTime();
-		checkServerHealth();
-	}
-
-	function toggleAnnouncementsEdit() {
-		isEditingAnnouncements = !isEditingAnnouncements;
-	}
-
-	function saveAnnouncements() {
-		isEditingAnnouncements = false;
-
-		if (typeof localStorage === 'undefined') {
-			return;
-		}
-
-		localStorage.setItem('examAnnouncements', announcements);
-	}
-
-	function loadAnnouncements() {
-		if (typeof localStorage === 'undefined') {
-			return;
-		}
-
-		const saved = localStorage.getItem('examAnnouncements');
-		if (saved) {
-			announcements = saved;
+	function persist() {
+		if (!mounted) return;
+		try {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify({ cfg, rehearsal }));
+			storageWarning = '';
+		} catch {
+			storageWarning = 'Changes could not be saved on this device. Pop-out sync is unavailable.';
 		}
 	}
 
-	function calculateCheckpointTimes() {
-		if (!examStartTime || !examEndTime) return;
-
-		const start = new Date(`1970-01-01T${examStartTime}`);
-		const end = new Date(`1970-01-01T${examEndTime}`);
-
-		if (end < start) {
-			end.setDate(end.getDate() + 1);
+	function updateConfig(value: ProjectorConfig) {
+		cfg = value;
+		persist();
+		tick();
+	}
+	function updateRehearsal(value: Rehearsal) {
+		rehearsal = value;
+		persist();
+		tick();
+	}
+	function setCalibration(value: boolean) {
+		calibration = value;
+		controlsChannel?.postMessage({ type: 'calibration', value });
+	}
+	function updateNoticeOverflow(value: boolean) {
+		if (noticeOverflow === value) return;
+		noticeOverflow = value;
+		controlsChannel?.postMessage({ type: 'notice-overflow', value });
+	}
+	function reset() {
+		setCalibration(false);
+		cfg = defaultConfig();
+		rehearsal = { enabled: false, base: toSeconds(cfg.start), at: Date.now(), fail: false };
+		persist();
+		tick();
+	}
+	function revealControls() {
+		chrome = true;
+		clearTimeout(hideTimer);
+		hideTimer = setTimeout(() => {
+			chrome = false;
+		}, 2500);
+	}
+	function popOut() {
+		const popup = window.open(
+			`${location.href.split('#')[0]}#console`,
+			'examConsole',
+			'width=560,height=900'
+		);
+		if (popup) {
+			open = false;
+			popup.focus();
 		}
-
-		const duration = end.getTime() - start.getTime();
-		const midpoint = new Date(start.getTime() + duration / 2);
-
-		examMidpointTime = midpoint.toTimeString().slice(0, 5);
-		final30Time = new Date(end.getTime() - 30 * 60000).toTimeString().slice(0, 5);
-		final15Time = new Date(end.getTime() - 15 * 60000).toTimeString().slice(0, 5);
-		final5Time = new Date(end.getTime() - 5 * 60000).toTimeString().slice(0, 5);
-
-		updateCheckpointObjects();
-		saveExamSettings();
-		updateTimeDisplay();
 	}
-
-	function updateCheckpointObjects() {
-		checkpoints[0].time = examMidpointTime;
-		checkpoints[1].time = final30Time;
-		checkpoints[2].time = final15Time;
-		checkpoints[3].time = final5Time;
+	function syncNow() {
+		void syncTime();
+		void checkHealth();
 	}
-
-	function updateCheckpointStatus() {
-		if (!currentTime) return;
-
-		const currentTimeStr = currentTime.toTimeString().slice(0, 5);
-		const allCheckpoints: Checkpoint[] = [];
-
-		if (examStartTime) {
-			allCheckpoints.push({
-				id: 'exam-start',
-				name: 'Exam Start',
-				time: examStartTime,
-				enabled: true,
-				emoji: '🟢',
-				color: '#198038',
-				isCustom: false
-			});
-		}
-
-		allCheckpoints.push(...checkpoints.filter((cp) => cp.enabled && cp.time));
-		allCheckpoints.push(...customCheckpoints.filter((cp) => cp.enabled && cp.time));
-
-		if (examEndTime) {
-			allCheckpoints.push({
-				id: 'exam-end',
-				name: 'Exam End',
-				time: examEndTime,
-				enabled: true,
-				emoji: '🔴',
-				color: '#DA1E28',
-				isCustom: false
-			});
-		}
-
-		allCheckpoints.sort((a, b) => a.time.localeCompare(b.time));
-
-		let newActiveCheckpoint: Checkpoint | null = null;
-		let newNextCheckpoint: Checkpoint | null = null;
-
-		for (const checkpoint of allCheckpoints) {
-			if (currentTimeStr >= checkpoint.time) {
-				newActiveCheckpoint = checkpoint;
-			} else if (!newNextCheckpoint && currentTimeStr < checkpoint.time) {
-				newNextCheckpoint = checkpoint;
-				break;
-			}
-		}
-
-		activeCheckpoint = newActiveCheckpoint;
-		nextCheckpoint = newNextCheckpoint;
-	}
-
-	function addCustomCheckpoint() {
-		const newCheckpoint: Checkpoint = {
-			id: `custom-${Date.now()}`,
-			name: 'Custom Milestone',
-			time: '',
-			enabled: true,
-			emoji: '📝',
-			color: '#4589FF',
-			isCustom: true
-		};
-
-		customCheckpoints = [...customCheckpoints, newCheckpoint];
-		saveExamSettings();
-	}
-
-	function removeCustomCheckpoint(id: string) {
-		customCheckpoints = customCheckpoints.filter((cp) => cp.id !== id);
-		saveExamSettings();
-		updateTimeDisplay();
-	}
-
-	function saveExamSettings() {
-		if (typeof localStorage === 'undefined') {
-			return;
-		}
-
-		const settings: PersistedSettings = {
-			examStartTime,
-			examEndTime,
-			examMidpointTime,
-			final30Time,
-			final15Time,
-			final5Time,
-			checkpoints,
-			customCheckpoints,
-			customTitle,
-			announcementPosition,
-			announcementFontSize,
-			is24Hour,
-			highContrastMode,
-			showAnnouncements,
-			showDate,
-			showTimezone,
-			bottomDeadZoneVh
-		};
-
-		localStorage.setItem('examSettings', JSON.stringify(settings));
-	}
-
-	function handleSettingsSave() {
-		saveExamSettings();
-		updateTimeDisplay();
-	}
-
-	function clearAllSettings() {
-		examStartTime = '';
-		examEndTime = '';
-		examMidpointTime = '';
-		final30Time = '';
-		final15Time = '';
-		final5Time = '';
-		customTitle = DEFAULT_TITLE;
-		announcementPosition = DEFAULT_ANNOUNCEMENT_POSITION;
-		announcementFontSize = DEFAULT_ANNOUNCEMENT_FONT_SIZE;
-		is24Hour = true;
-		highContrastMode = false;
-		announcements = '';
-		showAnnouncements = true;
-		showDate = false;
-		showTimezone = false;
-		bottomDeadZoneVh = 0;
-		isEditingAnnouncements = false;
-		checkpoints = createDefaultCheckpoints();
-		customCheckpoints = [];
-		activeCheckpoint = null;
-		nextCheckpoint = null;
-
-		if (typeof localStorage !== 'undefined') {
-			localStorage.removeItem('examSettings');
-			localStorage.removeItem('examAnnouncements');
-		}
-
-		updateTimeDisplay();
-	}
-
-	function loadExamSettings() {
-		if (typeof localStorage === 'undefined') {
-			return;
-		}
-
-		const saved = localStorage.getItem('examSettings');
-		if (!saved) return;
-
-		const settings = JSON.parse(saved) as Partial<PersistedSettings>;
-		examStartTime = settings.examStartTime || '';
-		examEndTime = settings.examEndTime || '';
-		examMidpointTime = settings.examMidpointTime || '';
-		final30Time = settings.final30Time || '';
-		final15Time = settings.final15Time || '';
-		final5Time = settings.final5Time || '';
-		customTitle = settings.customTitle || DEFAULT_TITLE;
-		announcementPosition = settings.announcementPosition || DEFAULT_ANNOUNCEMENT_POSITION;
-		announcementFontSize = settings.announcementFontSize || DEFAULT_ANNOUNCEMENT_FONT_SIZE;
-		is24Hour = settings.is24Hour ?? true;
-		highContrastMode = settings.highContrastMode || false;
-		showAnnouncements = settings.showAnnouncements ?? true;
-		showDate = settings.showDate ?? false;
-		showTimezone = settings.showTimezone ?? false;
-		bottomDeadZoneVh = settings.bottomDeadZoneVh ?? 0;
-
-		if (settings.checkpoints) checkpoints = settings.checkpoints;
-		if (settings.customCheckpoints) customCheckpoints = settings.customCheckpoints;
+	function fullscreen() {
+		const action = document.fullscreenElement
+			? document.exitFullscreen()
+			: document.documentElement.requestFullscreen?.();
+		void action?.catch(() => {
+			/* Browser may decline fullscreen. */
+		});
 	}
 
 	onMount(() => {
-		loadAnnouncements();
-		loadExamSettings();
-		fetchServerTime();
-		checkServerHealth();
-
-		clockInterval = setInterval(updateTimeDisplay, 1000);
-		interval = setInterval(fetchServerTime, 300000);
-		healthInterval = setInterval(checkServerHealth, 600000);
-	});
-
-	onDestroy(() => {
-		if (interval) clearInterval(interval);
-		if (healthInterval) clearInterval(healthInterval);
-		if (clockInterval) clearInterval(clockInterval);
-	});
-
-	$: if (typeof document !== 'undefined') {
-		if (highContrastMode) {
-			document.body.classList.add('high-contrast');
-		} else {
-			document.body.classList.remove('high-contrast');
+		mounted = true;
+		try {
+			({ cfg, rehearsal } = loadState(localStorage));
+		} catch {
+			storageWarning = 'Changes could not be saved on this device. Pop-out sync is unavailable.';
 		}
-	}
+		consoleOnly = location.hash === '#console';
+		if (typeof BroadcastChannel !== 'undefined') {
+			controlsChannel = new BroadcastChannel('examDisplay.controls');
+			controlsChannel.onmessage = ({ data }) => {
+				if (data?.type === 'calibration' && typeof data.value === 'boolean')
+					calibration = data.value;
+				if (data?.type === 'notice-overflow' && typeof data.value === 'boolean')
+					noticeOverflow = data.value;
+				if (data?.type === 'state-request' && !consoleOnly) {
+					controlsChannel?.postMessage({ type: 'calibration', value: calibration });
+					controlsChannel?.postMessage({ type: 'notice-overflow', value: noticeOverflow });
+				}
+			};
+			if (consoleOnly) controlsChannel.postMessage({ type: 'state-request' });
+			else controlsChannel.postMessage({ type: 'calibration', value: false });
+		}
+		persist();
+		tick();
+		syncNow();
+		revealControls();
+		const ticker = setInterval(tick, 1000);
+		const healthTicker = setInterval(checkHealth, 600000);
+		const onStorage = (event: StorageEvent) => {
+			if (event.key !== STORAGE_KEY && event.key !== null) return;
+			({ cfg, rehearsal } = loadState(localStorage));
+			tick();
+		};
+		const onHash = () => {
+			consoleOnly = location.hash === '#console';
+		};
+		const onKey = (event: KeyboardEvent) => {
+			if (event.ctrlKey || event.metaKey || event.altKey) return;
+			const target = event.target;
+			if (
+				target instanceof HTMLElement &&
+				target.closest('input,textarea,select,[contenteditable="true"]')
+			) {
+				if (event.key === 'Escape') target.blur();
+				return;
+			}
+			if (event.key.toLowerCase() === 'c' && !consoleOnly) {
+				open = !open;
+				event.preventDefault();
+			}
+			if (event.key === 'Escape') open = false;
+			if (event.key.toLowerCase() === 'f') fullscreen();
+		};
+		window.addEventListener('storage', onStorage);
+		window.addEventListener('hashchange', onHash);
+		window.addEventListener('keydown', onKey);
+		window.addEventListener('pointermove', revealControls);
+		return () => {
+			stopped = true;
+			controlsChannel?.close();
+			clearInterval(ticker);
+			clearInterval(healthTicker);
+			clearTimeout(syncTimer);
+			clearTimeout(hideTimer);
+			pendingRequests.forEach((request) => request.abort());
+			window.removeEventListener('storage', onStorage);
+			window.removeEventListener('hashchange', onHash);
+			window.removeEventListener('keydown', onKey);
+			window.removeEventListener('pointermove', revealControls);
+		};
+	});
 </script>
 
-<svelte:head>
-	<title>{customTitle}</title>
-</svelte:head>
-
-<div
-	class={`relative h-screen overflow-hidden px-4 py-4 md:px-6 md:py-6 ${
-		highContrastMode ? 'bg-black text-white' : 'bg-slate-100 text-slate-900'
-	}`}
-	style={`--dead-zone-size: ${bottomDeadZoneVh}vh; --safe-zone-size: calc(100vh - ${bottomDeadZoneVh}vh);`}
->
-	<button
-		on:click={() => (showOperatorSidebar = !showOperatorSidebar)}
-		class={`fixed top-4 right-4 z-50 inline-flex items-center gap-2 border px-4 py-3 text-sm font-semibold transition-colors ${
-			highContrastMode
-				? 'border-white bg-black text-white'
-				: 'border-slate-300 bg-white text-slate-900'
-		}`}
-		aria-label="Toggle operator controls"
-	>
-		<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path
-				stroke-linecap="round"
-				stroke-linejoin="round"
-				stroke-width="2"
-				d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
-			></path>
-		</svg>
-		<span>{showOperatorSidebar ? 'Hide controls' : 'Show controls'}</span>
-	</button>
-
-	{#if showOperatorSidebar}
-		<OperatorSidebar
-			bind:customTitle
-			bind:examStartTime
-			bind:examEndTime
-			bind:checkpoints
-			bind:customCheckpoints
-			bind:announcements
-			bind:isEditingAnnouncements
-			bind:showAnnouncements
-			bind:announcementPosition
-			bind:announcementFontSize
-			bind:is24Hour
-			bind:highContrastMode
-			bind:showDate
-			bind:showTimezone
-			bind:bottomDeadZoneVh
-			bind:showDeadZoneGuide
-			{activeCheckpoint}
-			{nextCheckpoint}
+<svelte:head><title>{cfg.title || 'Exam Display'}</title></svelte:head>
+<div class:console-only={consoleOnly} class="projector-app">
+	{#if !consoleOnly}
+		<ProjectorDisplay
+			{cfg}
+			{now}
+			error={clockError}
+			{ntpUnavailable}
+			{calibration}
+			onNoticeOverflow={updateNoticeOverflow}
+			rehearsal={rehearsal.enabled}
+			controlsOpen={open}
+		/>
+		<button
+			class="controls-toggle"
+			class:concealed={!chrome || open}
+			onclick={() => (open = !open)}
+			onfocus={revealControls}
+			aria-label="Toggle operator controls">Controls <kbd>C</kbd></button
+		>
+	{/if}
+	{#if open || consoleOnly}
+		<OperatorConsole
+			{cfg}
+			{rehearsal}
+			{now}
+			{consoleOnly}
+			{calibration}
+			{noticeOverflow}
+			onCalibration={setCalibration}
 			{timeSource}
 			{ntpInfo}
 			{healthStatus}
-			{lastHealthCheck}
-			{responseTime}
-			on:saveSettings={handleSettingsSave}
-			on:calculateCheckpoints={calculateCheckpointTimes}
-			on:addCustomCheckpoint={addCustomCheckpoint}
-			on:removeCustomCheckpoint={(event) => removeCustomCheckpoint(event.detail.id)}
-			on:toggleAnnouncementsEdit={toggleAnnouncementsEdit}
-			on:saveAnnouncements={saveAnnouncements}
-			on:clearAllSettings={clearAllSettings}
-			on:syncNow={manualHealthCheck}
-			on:close={() => (showOperatorSidebar = false)}
+			{timezone}
+			onConfig={updateConfig}
+			onRehearsal={updateRehearsal}
+			onClose={() => (open = false)}
+			onPopOut={popOut}
+			onSync={syncNow}
+			onReset={reset}
 		/>
+		{#if storageWarning}<div class="storage-warning" role="status">{storageWarning}</div>{/if}
 	{/if}
-
-	{#if showDeadZoneGuide && bottomDeadZoneVh > 0}
-		<div
-			class="safe-guide-pattern pointer-events-none fixed inset-x-0 bottom-0 z-30 border-t-4 border-dashed border-amber-400"
-			style:height={`calc(${bottomDeadZoneVh}vh)`}
-		>
-			<div
-				class="px-4 py-2 text-right text-xs font-semibold tracking-[0.18em] text-amber-100 uppercase"
-			>
-				Blocked by room sightline
-			</div>
-		</div>
-	{/if}
-
-	<div class="mx-auto flex h-full min-h-0 w-full max-w-[1800px] flex-col overflow-hidden">
-		<section
-			class="flex min-h-0 flex-1 flex-col gap-6"
-			style="height: calc(var(--safe-zone-size) - 2rem);"
-		>
-			<header
-				class="flex shrink-0 flex-col gap-4 pt-16 lg:flex-row lg:items-start lg:justify-between"
-			>
-				<div class="min-w-0 flex-1">
-					<h1 class="text-[clamp(3.25rem,5vw,6rem)] leading-[0.92] break-words">
-						{customTitle}
-					</h1>
-				</div>
-				<div class="flex shrink-0 flex-wrap items-center gap-3">
-					<SystemStatus {healthStatus} {highContrastMode} />
-					{#if bottomDeadZoneVh > 0}
-						<div
-							class={`inline-flex items-center gap-2 border px-4 py-3 text-base font-semibold ${
-								highContrastMode ? 'border-white bg-black' : 'border-slate-300 bg-white'
-							}`}
-						>
-							<span>Reserved bottom zone</span>
-							<span class="font-mono">{bottomDeadZoneVh}vh</span>
-						</div>
-					{/if}
-				</div>
-			</header>
-
-			{#if announcementPosition === 'top'}
-				<AnnouncementsBanner
-					{announcements}
-					{showAnnouncements}
-					position="top"
-					fontSize={announcementFontSize}
-					{highContrastMode}
-				/>
-			{/if}
-
-			<main
-				class={`grid h-full min-h-0 flex-1 gap-6 overflow-hidden ${
-					announcementPosition === 'left' && showAnnouncements && announcements.trim()
-						? 'xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)]'
-						: ''
-				}`}
-			>
-				{#if announcementPosition === 'left' && showAnnouncements && announcements.trim()}
-					<div class="self-start overflow-hidden">
-						<AnnouncementsBanner
-							{announcements}
-							{showAnnouncements}
-							position="left"
-							fontSize={announcementFontSize}
-							{highContrastMode}
-						/>
-					</div>
-				{/if}
-
-				<div class="h-full min-h-0 min-w-0 overflow-hidden">
-					<ExamClock
-						{serverTime}
-						{serverDate}
-						{timezone}
-						{activeCheckpoint}
-						{nextCheckpoint}
-						{highContrastMode}
-						{examProgress}
-						{nextCheckpointProgress}
-						{showDate}
-						{showTimezone}
-					/>
-				</div>
-			</main>
-		</section>
-
-		{#if bottomDeadZoneVh > 0}
-			<div
-				class={`mt-4 border-t ${
-					highContrastMode ? 'border-white bg-black' : 'border-slate-300 bg-slate-200'
-				}`}
-				style:height={`calc(${bottomDeadZoneVh}vh)`}
-				aria-hidden="true"
-			></div>
-		{/if}
-	</div>
 </div>
+
+<style>
+	.projector-app {
+		position: fixed;
+		inset: 0;
+		overflow: hidden;
+		background: #0b0c0e;
+		font-family: 'IBM Plex Sans', sans-serif;
+	}
+	.console-only {
+		background: #e9e8e4;
+	}
+	.controls-toggle {
+		position: absolute;
+		top: 16px;
+		right: 16px;
+		z-index: 5;
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 10px 14px;
+		background: rgba(21, 23, 27, 0.88);
+		color: white;
+		border: 0;
+		font:
+			600 13px 'IBM Plex Sans',
+			sans-serif;
+		cursor: pointer;
+		transition: opacity 0.3s;
+	}
+	.controls-toggle kbd {
+		font:
+			500 11px 'IBM Plex Mono',
+			monospace;
+		padding: 2px 6px;
+		border: 1px solid #ffffff66;
+	}
+	.concealed {
+		opacity: 0;
+		pointer-events: none;
+	}
+	.controls-toggle:focus-visible {
+		opacity: 1;
+		pointer-events: auto;
+		outline: 2px solid #e8c547;
+	}
+	.storage-warning {
+		position: fixed;
+		bottom: 0;
+		right: 0;
+		z-index: 60;
+		max-width: 460px;
+		padding: 12px;
+		background: #e8c547;
+		color: #15171b;
+	}
+</style>

@@ -2,6 +2,44 @@
 
 A modern web application designed for displaying accurate time during exams with comprehensive exam management features. Built with SvelteKit and locked to `ntp.ui.ac.id` for authoritative time. Deployable on Netlify, Docker, or Kubernetes.
 
+## Projector display and operator console
+
+The projector view uses a large clock and countdown beside a colour-coded exam phase
+and notice panel. Press **C** to open or close the operator console, **F** for fullscreen,
+and **Esc** to close controls. The Controls button appears when the pointer moves.
+
+The console has four tabs:
+
+- **Exam**: title, start/end times, +5/+10 minute extensions, milestone re-spacing,
+  authoritative NTP status, manual sync, and explicit rehearsal with a time slider.
+- **Milestones**: edit the pre-start phase and milestone titles, prompts, colours,
+  times, and visibility. Prompts support `{start}`, `{end}`, and `{left}`.
+- **Notice**: edit classroom notices, use quick fills, and create bullets with `- `.
+- **Screen**: choose 16:9, 16:10, or 4:3 and reserve up to 30% at the bottom for
+  audience sightlines, with an optional guide. **High visibility mode** uses bold black
+  text on white, with an optional white-on-black inversion, larger seconds and countdown,
+  and a simple progress bar. It hides small milestone labels and phase prompts, and shows
+  short notices with line breaks preserved. The text limit is shared across all lines.
+  The console warns when a notice preview is shortened; saved text stays
+  intact. **Show calibration screen** replaces exam timing with contrast bands, sample
+  digits, and text sizes for a back-row check under exam lighting. Calibration controls
+  also work from the pop-out console, and calibration ends on display reload.
+
+**Pop out** opens a console-only window that synchronizes settings with the display
+on the same browser and origin. Keep that window on the operator's own monitor when
+using an extended desktop. Changes are saved on the device, and existing exam settings
+and announcements migrate automatically. Live timing prefers `ntp.ui.ac.id`;
+when synchronization fails, the display continues using the local machine clock in the
+configured timezone and marks NTP red. It switches back automatically when NTP recovers.
+Rehearsal is labelled on the display and allows simulated failure without changing live
+NTP status. Re-spacing affects built-in milestones; extensions move future milestones
+along with the deadline.
+
+Run `npm run test:layout` for model, projector layout, migration, error recovery, console,
+and pop-out synchronization checks. Install Chromium with `npx playwright install chromium`
+if the test browser is missing. To use an installed Chrome browser instead, run
+`PLAYWRIGHT_BROWSER_CHANNEL=chrome npm run test:layout`.
+
 ## Features
 
 ### ⏰ **Advanced Time Management**
@@ -121,7 +159,7 @@ NODE_ENV=production
 
 - **Enforced server**: `ntp.ui.ac.id`
 - **Partial sync handling**: App accepts NTP time even when offset/delay metrics are unavailable
-- **No local fallback**: If NTP is unavailable, the API returns an error instead of application server time
+- **Local clock fallback**: If NTP is unavailable, the API reports an error and the browser displays local machine time with a red NTP indicator
 
 ## Development
 
@@ -277,7 +315,7 @@ kubectl get svc exam-display-service
 
    - Green: Full NTP synchronization
    - Indigo: NTP time with estimated metrics
-   - Red: NTP unavailable, no time served
+   - Red: NTP unavailable, display uses the local machine clock
 
 4. **Manage Checkpoints**:
 
