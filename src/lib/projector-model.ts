@@ -64,7 +64,7 @@ const BUILTIN_DEFAULTS: Milestone[] = [
 		id: 'm3',
 		time: '10:30',
 		title: 'Final 30 minutes',
-		prompt: 'Check your name and NPM on every page',
+		prompt: 'Make sure you have seen all questions',
 		color: '#b5640d',
 		enabled: true
 	},
@@ -72,7 +72,7 @@ const BUILTIN_DEFAULTS: Milestone[] = [
 		id: 'm4',
 		time: '10:45',
 		title: 'Final 15 minutes',
-		prompt: 'No more leaving the room',
+		prompt: 'Recheck your answers and identity',
 		color: '#b5640d',
 		enabled: true
 	},
@@ -88,7 +88,7 @@ const BUILTIN_DEFAULTS: Milestone[] = [
 		id: 'm6',
 		time: '11:00',
 		title: "Time's up",
-		prompt: 'Pens down. Stay seated until papers are collected.',
+		prompt: 'Pens down. Leave immediately.',
 		color: '#15171b',
 		enabled: true
 	}
@@ -99,7 +99,7 @@ export function defaultConfig(): ProjectorConfig {
 		title: 'Computer Networks · Final Exam',
 		start: '09:00',
 		end: '11:00',
-		notice: 'Phones off and in your bag. Raise your hand to leave the room.',
+		notice: 'All electronics off and in your bag.',
 		showNotice: true,
 		safe: 12,
 		guide: false,
