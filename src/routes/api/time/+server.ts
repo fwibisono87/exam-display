@@ -2,24 +2,29 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { time as getSntpTime } from '@hapi/sntp';
-import type { NtpInfo, TimeResponse, TimeSource } from '$lib/types';
+import type { INtpInfo, ITimeResponse, TTimeSource } from '$lib/types';
+import {
+	DEFAULT_NTP_PROVIDER,
+	ENtpProvider,
+	NTP_PROVIDERS,
+	isAllowedNtpProvider
+} from '../../../constants/enums/ntp_providers';
 
-const ENFORCED_NTP_SERVER = 'ntp.ui.ac.id';
 const NTP_TIMEOUT_MS = 5000;
 
-interface NTPResult {
+interface INtpResult {
 	time: Date;
 	offset: number;
 	delay: number;
 	hasValidMetrics: boolean;
 }
 
-interface NTPError {
+interface INtpError {
 	error: string;
 	details?: string;
 }
 
-async function getNTPTime(server: string): Promise<NTPResult | NTPError> {
+async function getNTPTime(server: string): Promise<INtpResult | INtpError> {
 	try {
 		const result = await getSntpTime({
 			host: server,
@@ -57,13 +62,39 @@ async function getNTPTime(server: string): Promise<NTPResult | NTPError> {
 	}
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ url }) => {
 	const configuredTimezone = env.TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone;
-	const ntpServer = ENFORCED_NTP_SERVER;
+	const requestedServer = url.searchParams.get('server')?.trim();
+
+	if (requestedServer && !isAllowedNtpProvider(requestedServer)) {
+		const response: ITimeResponse = {
+			timezone: configuredTimezone,
+			timeSource: 'error',
+			ntp: {
+				server: requestedServer,
+				error: 'invalid_ntp_server',
+				errorDetails: `NTP server must be one of: ${NTP_PROVIDERS.join(', ')}`
+			},
+			status: 'unhealthy',
+			debug: {
+				ntpServerConfigured: false,
+				ntpServerValue: requestedServer,
+				serverTimeSource: 'unavailable'
+			}
+		};
+		return json(response, { status: 400 });
+	}
+
+	const ntpServer: ENtpProvider =
+		requestedServer && isAllowedNtpProvider(requestedServer)
+			? requestedServer
+			: env.NTP_SERVER && isAllowedNtpProvider(env.NTP_SERVER)
+				? env.NTP_SERVER
+				: DEFAULT_NTP_PROVIDER;
 
 	let serverTime: Date | null = null;
-	let timeSource: TimeSource = 'error';
-	let ntpInfo: NtpInfo = { server: ntpServer };
+	let timeSource: TTimeSource = 'error';
+	let ntpInfo: INtpInfo = { server: ntpServer };
 
 	const ntpResult = await getNTPTime(ntpServer);
 
@@ -83,7 +114,7 @@ export const GET: RequestHandler = async () => {
 			ntpInfo.delay = Math.round(ntpResult.delay);
 		}
 	} else {
-		const ntpError = ntpResult as NTPError;
+		const ntpError = ntpResult as INtpError;
 
 		ntpInfo = {
 			server: ntpServer,
@@ -91,7 +122,7 @@ export const GET: RequestHandler = async () => {
 			errorDetails: ntpError.details
 		};
 
-		const response: TimeResponse = {
+		const response: ITimeResponse = {
 			timezone: configuredTimezone,
 			timeSource,
 			ntp: ntpInfo,
@@ -117,7 +148,7 @@ export const GET: RequestHandler = async () => {
 		second: '2-digit'
 	});
 
-	const response: TimeResponse = {
+	const response: ITimeResponse = {
 		time: serverTime.toISOString(),
 		timestamp: serverTime.getTime(),
 		timezone: configuredTimezone,

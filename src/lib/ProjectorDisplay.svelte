@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { ProjectorConfig } from '$lib/projector-model';
+	import type { IProjectorConfig } from '$lib/projector-model';
 	import {
 		fillText,
 		formatDuration,
@@ -8,8 +8,18 @@
 		resolvePhase,
 		visibilityNotice
 	} from '$lib/projector-model';
+	import {
+		CANVAS_HEIGHT_PX,
+		CANVAS_WIDTH_16_10_PX,
+		CANVAS_WIDTH_16_9_PX,
+		CANVAS_WIDTH_4_3_PX,
+		EAspectRatio,
+		MAX_DYNAMIC_CANVAS_WIDTH_PX,
+		MIN_DYNAMIC_CANVAS_WIDTH_PX
+	} from '../constants/enums/aspect_ratios';
+	import { DEFAULT_NTP_PROVIDER } from '../constants/enums/ntp_providers';
 
-	export let cfg: ProjectorConfig;
+	export let cfg: IProjectorConfig;
 	export let now: number;
 	export let error: boolean;
 	export let ntpUnavailable = false;
@@ -18,8 +28,8 @@
 	export let calibration = false;
 	export let onNoticeOverflow: (value: boolean) => void = () => {};
 
-	const CANVAS_HEIGHT = 1080;
-	let canvasWidth = 1920;
+	const CANVAS_HEIGHT = CANVAS_HEIGHT_PX;
+	let canvasWidth = CANVAS_WIDTH_16_9_PX;
 	let scale = 1;
 	let viewportWidth = 0;
 	let viewportHeight = 0;
@@ -34,6 +44,8 @@
 	let errorTitleElement: HTMLElement;
 	let errorCopyElement: HTMLElement;
 	let visibilityNoticeElement: HTMLElement;
+	let calibrationOverlayElement: HTMLElement;
+	let calibrationDirectionsElement: HTMLElement;
 	let noticeOverflow = false;
 	let reportedNoticeOverflow = false;
 	let noticeClampLines = 1;
@@ -46,8 +58,26 @@
 	let observer: ResizeObserver | undefined;
 	let frame = 0;
 
-	$: canvasWidth = cfg.aspect === '16:10' ? 1728 : cfg.aspect === '4:3' ? 1440 : 1920;
-	$: railWidth = canvasWidth >= 1900 ? 620 : canvasWidth >= 1700 ? 580 : 520;
+	function computeCanvasWidth(
+		aspect: IProjectorConfig['aspect'],
+		width: number,
+		height: number
+	): number {
+		if (aspect === EAspectRatio.WIDESCREEN_16_10) return CANVAS_WIDTH_16_10_PX;
+		if (aspect === EAspectRatio.STANDARD_4_3) return CANVAS_WIDTH_4_3_PX;
+		if (aspect === EAspectRatio.WIDESCREEN_16_9) return CANVAS_WIDTH_16_9_PX;
+		if (width <= 0 || height <= 0) return CANVAS_WIDTH_16_9_PX;
+		return Math.round(
+			Math.max(
+				MIN_DYNAMIC_CANVAS_WIDTH_PX,
+				Math.min(MAX_DYNAMIC_CANVAS_WIDTH_PX, (width / height) * CANVAS_HEIGHT)
+			)
+		);
+	}
+
+	$: canvasWidth = computeCanvasWidth(cfg.aspect, viewportWidth, viewportHeight);
+	$: railWidth =
+		canvasWidth >= 1900 ? 620 : canvasWidth >= 1700 ? 580 : canvasWidth >= 1400 ? 520 : 480;
 	$: safePx = Math.round((CANVAS_HEIGHT * Math.max(0, Math.min(30, cfg.safe))) / 100);
 	$: phaseState = resolvePhase(cfg, now);
 	$: phase = phaseState.phase;
@@ -58,10 +88,11 @@
 	$: secondsLabel = String(((Math.floor(now) % 60) + 60) % 60).padStart(2, '0');
 	$: noticeLines = parseNotice(cfg.notice);
 	$: hasNotice = cfg.showNotice && noticeLines.length > 0;
-	$: visibilityNoticeState = visibilityNotice(cfg);
+	$: visibilityNoticeState = visibilityNotice(cfg, canvasWidth);
 	$: visibilityNoticeText = visibilityNoticeState.text;
 	$: highVisibility = cfg.highVisibility;
 	$: inverted = cfg.inverted;
+	$: activeNtpServer = cfg.ntpServer || DEFAULT_NTP_PROVIDER;
 	$: columnScale = railWidth / 620;
 	$: railEmpty = (error || !phaseState.scheduled) && !hasNotice;
 	$: layoutRailWidth = railEmpty ? 0 : railWidth;
@@ -69,6 +100,37 @@
 	$: phaseLimit = hasNotice
 		? `${Math.max(30, (highVisibility ? 35 : 55) - cfg.safe * 0.5)}%`
 		: '100%';
+	$: canvasCenter = controlsOpen && viewportWidth > 1100 ? 'calc(50% - 230px)' : '50%';
+	$: highVisibilityBg = inverted ? '#000' : '#fff';
+	$: highVisibilityFg = inverted ? '#fff' : '#000';
+	$: canvasStyle = `--canvas-width:${canvasWidth}px;--canvas-scale:${scale};--canvas-center:${canvasCenter};--rail-width:${layoutRailWidth}px;--safe-px:${safePx}px;--hv-bg:${highVisibilityBg};--hv-fg:${highVisibilityFg};`;
+	$: calibrationDigitsStyle = `--calibration-digits-size:${180 - cfg.safe * 2}px`;
+	$: calibrationSafeStyle = `height:${safePx}px`;
+	$: ntpStatusTitle = ntpUnavailable
+		? `${activeNtpServer} unreachable · using local machine time`
+		: `Synchronized with ${activeNtpServer}`;
+	$: ntpStatusAriaLabel = rehearsal
+		? 'Rehearsal preview'
+		: ntpUnavailable
+			? 'NTP unavailable · local machine clock'
+			: error
+				? 'Clock unavailable'
+				: `Clock synchronized · ${activeNtpServer}`;
+	$: ntpStatusLabel = rehearsal
+		? 'REHEARSAL'
+		: ntpUnavailable
+			? 'LOCAL CLOCK'
+			: highVisibility
+				? `NTP SYNCED · ${activeNtpServer}`
+				: `NTP · ${activeNtpServer}`;
+	$: errorDetailText = rehearsal
+		? 'Simulated clock failure · rehearsal'
+		: `${activeNtpServer} · no response · retrying in 30 s`;
+	$: clockAriaLabel = `${timeLabel}:${secondsLabel}`;
+	$: clockSecondsPx = Math.round(clockPx * (highVisibility ? 0.45 : 0.34));
+	$: phasePanelStyle = `--phase-color:${phase.color};--phase-flex:${phaseFlex};--phase-limit:${phaseLimit};--phase-title-size:${phaseTitlePx}px;--prompt-size:${promptPx}px;`;
+	$: phaseLabelText = phaseState.beforeStart ? 'Before start' : 'Now';
+	$: noticeLinesStyle = `--notice-lines:${noticeClampLines}`;
 	$: ticks = (() => {
 		const resolvedTime = resolvePhase(cfg, now);
 		const duration = Math.max(1, resolvedTime.end - resolvedTime.start);
@@ -99,8 +161,21 @@
 		});
 	})();
 	$: progress = Math.max(0, Math.min(100, phaseState.progress));
-	$: fitKey = `${JSON.stringify(cfg)}|${now}|${error}|${rehearsal}|${controlsOpen}|${calibration}`;
-	$: if (mounted && fitKey) scheduleFit();
+	$: if (mounted) {
+		void [
+			cfg,
+			canvasWidth,
+			phaseTitle,
+			phasePrompt,
+			timeLabel,
+			remaining,
+			error,
+			rehearsal,
+			controlsOpen,
+			calibration
+		];
+		scheduleFit();
+	}
 
 	function toClockSeconds(value: string): number {
 		const [hours = '0', minutes = '0'] = value.split(':');
@@ -117,21 +192,23 @@
 			});
 	}
 
-	function updateGeometry(open = controlsOpen, width = canvasWidth) {
+	function updateGeometry(open = controlsOpen, aspect = cfg.aspect) {
 		if (typeof window === 'undefined') return;
 		viewportWidth = window.innerWidth;
 		viewportHeight = window.innerHeight;
 		const available = Math.max(0, window.innerWidth - (open && window.innerWidth > 1100 ? 460 : 0));
+		const width = computeCanvasWidth(aspect, viewportWidth, viewportHeight);
+		canvasWidth = width;
 		scale = Math.max(0.01, Math.min(available / width, viewportHeight / CANVAS_HEIGHT));
 	}
 
 	function handleResize() {
-		updateGeometry(controlsOpen, canvasWidth);
+		updateGeometry(controlsOpen, cfg.aspect);
 		scheduleFit();
 	}
 
 	function fitText() {
-		updateGeometry(controlsOpen, canvasWidth);
+		updateGeometry(controlsOpen, cfg.aspect);
 		if (!highVisibility || calibration || !hasNotice) reportNoticeOverflow(false);
 		const nk = columnScale;
 		const titleBase = phaseTitle.length <= 12 ? 104 : phaseTitle.length <= 22 ? 84 : 66;
@@ -250,6 +327,18 @@
 				else titleSize -= 2;
 			}
 		}
+		if (calibration && calibrationOverlayElement && calibrationDirectionsElement) {
+			let directionsSize = 48;
+			for (let i = 0; i < 34; i += 1) {
+				calibrationDirectionsElement.style.fontSize = `${directionsSize}px`;
+				if (
+					calibrationOverlayElement.scrollHeight <= calibrationOverlayElement.clientHeight + 1 ||
+					directionsSize <= 14
+				)
+					break;
+				directionsSize -= 1;
+			}
+		}
 		if (nextPhaseTitlePx !== phaseTitlePx) phaseTitlePx = nextPhaseTitlePx;
 		if (nextPromptPx !== promptPx) promptPx = nextPromptPx;
 		if (nextNoticePx !== noticePx) noticePx = nextNoticePx;
@@ -272,7 +361,7 @@
 	}
 
 	onMount(() => {
-		updateGeometry(controlsOpen, canvasWidth);
+		updateGeometry(controlsOpen, cfg.aspect);
 		observer = new ResizeObserver(() => {
 			updateGeometry();
 			scheduleFit();
@@ -297,11 +386,12 @@
 		class:high-visibility={highVisibility || calibration}
 		class:inverted
 		data-testid="projector-display"
-		style={`--canvas-width:${canvasWidth}px;--canvas-scale:${scale};--canvas-center:${controlsOpen && viewportWidth > 1100 ? 'calc(50% - 230px)' : '50%'};--rail-width:${layoutRailWidth}px;--safe-px:${safePx}px;--hv-bg:${inverted ? '#000' : '#fff'};--hv-fg:${inverted ? '#fff' : '#000'};`}
+		style={canvasStyle}
 	>
 		{#if calibration}
 			<section
 				class="calibration-overlay"
+				bind:this={calibrationOverlayElement}
 				data-testid="calibration-screen"
 				aria-label="Calibration screen"
 			>
@@ -309,7 +399,7 @@
 				<div
 					class="calibration-digits"
 					data-testid="calibration-digits"
-					style={`--calibration-digits-size:${180 - cfg.safe * 2}px`}
+					style={calibrationDigitsStyle}
 				>
 					0123456789
 				</div>
@@ -321,7 +411,7 @@
 				<div class="calibration-bands" aria-label="Black and white contrast bands">
 					<span></span><span></span><span></span><span></span>
 				</div>
-				<div class="calibration-directions">
+				<div class="calibration-directions" bind:this={calibrationDirectionsElement}>
 					Check every digit from the back row with exam lighting. <br />
 					Kami TIDAK bertanggung-jawab atas KEAKURATAN mau pun KERUGIAN yang mungkin terjadi akibat memanfaatkan
 					situs ini. HARAP MENANGGUNG SENDIRI SEGALA RISIKO! Jangan lupa mengungkapkan/ menuliskan penghargaan
@@ -334,7 +424,7 @@
 				</div>
 				<div class="calibration-exit">Exit with the Screen controls.</div>
 				{#if safePx > 0}
-					<div class="calibration-safe" style={`height:${safePx}px`}>
+					<div class="calibration-safe" style={calibrationSafeStyle}>
 						BLOCKED SIGHTLINE · SAFE AREA {cfg.safe}%
 					</div>
 				{/if}
@@ -348,23 +438,11 @@
 							class="ntp-status"
 							class:error={error || ntpUnavailable}
 							data-testid="ntp-status"
-							title={ntpUnavailable ? 'NTP unreachable · using local machine time' : ''}
+							title={ntpStatusTitle}
 							class:rehearsal
-							aria-label={rehearsal
-								? 'Rehearsal preview'
-								: ntpUnavailable
-									? 'NTP unavailable · local machine clock'
-									: error
-										? 'Clock unavailable'
-										: 'Clock synchronized'}
+							aria-label={ntpStatusAriaLabel}
 						>
-							<span class="ntp-dot"></span>{rehearsal
-								? 'REHEARSAL'
-								: ntpUnavailable
-									? 'LOCAL CLOCK'
-									: highVisibility
-										? 'NTP SYNCED'
-										: 'NTP'}
+							<span class="ntp-dot"></span>{ntpStatusLabel}
 						</div>
 					</header>
 
@@ -380,11 +458,7 @@
 							<div class="error-copy" bind:this={errorCopyElement}>
 								Don't use this screen for timing. The invigilator will announce the time.
 							</div>
-							<div class="error-detail">
-								{rehearsal
-									? 'Simulated clock failure · rehearsal'
-									: 'ntp.ui.ac.id · no response · retrying in 30 s'}
-							</div>
+							<div class="error-detail">{errorDetailText}</div>
 						</section>
 					{:else}
 						<section class="clock-content" data-testid="clock-panel">
@@ -393,12 +467,10 @@
 									class="clock-line"
 									bind:this={clockElement}
 									data-testid="clock-time"
-									aria-label={`${timeLabel}:${secondsLabel}`}
+									aria-label={clockAriaLabel}
 								>
 									<span class="clock-main" style:font-size={`${clockPx}px`}>{timeLabel}</span>
-									<span
-										class="clock-seconds"
-										style:font-size={`${Math.round(clockPx * (highVisibility ? 0.45 : 0.34))}px`}
+									<span class="clock-seconds" style:font-size={`${clockSecondsPx}px`}
 										>:{secondsLabel}</span
 									>
 								</div>
@@ -446,12 +518,8 @@
 
 				{#if !railEmpty}<aside class="right-rail">
 						{#if !error && phaseState.scheduled}
-							<section
-								class="phase-panel"
-								bind:this={phaseElement}
-								style={`--phase-color:${phase.color};--phase-flex:${phaseFlex};--phase-limit:${phaseLimit};--phase-title-size:${phaseTitlePx}px;--prompt-size:${promptPx}px;`}
-							>
-								<div class="phase-label">{phaseState.beforeStart ? 'Before start' : 'Now'}</div>
+							<section class="phase-panel" bind:this={phaseElement} style={phasePanelStyle}>
+								<div class="phase-label">{phaseLabelText}</div>
 								<div class="phase-copy" bind:this={phaseTextElement} data-testid="current-phase">
 									{phaseTitle}
 								</div>
@@ -471,7 +539,7 @@
 									bind:this={visibilityNoticeElement}
 									data-testid="notice-copy"
 									style:font-size={`${noticePx}px`}
-									style={`--notice-lines:${noticeClampLines}`}
+									style={noticeLinesStyle}
 								>
 									{visibilityNoticeText}
 								</div>

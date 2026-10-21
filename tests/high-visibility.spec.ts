@@ -14,7 +14,7 @@ async function seed(page: import('@playwright/test').Page, patch: Partial<Projec
 }
 
 test.beforeEach(async ({ context }) => {
-	await context.route('**/api/time', (route) =>
+	await context.route('**/api/time*', (route) =>
 		route.fulfill({
 			json: {
 				time: '2026-10-12T03:12:04.000Z',
@@ -27,7 +27,7 @@ test.beforeEach(async ({ context }) => {
 	await context.route('**/api/health', (route) => route.fulfill({ json: { status: 'healthy' } }));
 });
 
-for (const aspect of ['16:9', '16:10', '4:3'] as const) {
+for (const aspect of ['auto', '16:9', '16:10', '4:3'] as const) {
 	for (const inverted of [false, true]) {
 		for (const safe of [0, 30]) {
 			test(`high visibility fits ${aspect}, inverted=${inverted}, safe=${safe}`, async ({
@@ -131,7 +131,7 @@ test('calibration works from a pop-out, hides exam timing, and is temporary', as
 	await popup.close();
 });
 
-for (const aspect of ['16:9', '16:10', '4:3'] as const) {
+for (const aspect of ['auto', '16:9', '16:10', '4:3'] as const) {
 	test(`calibration content stays above the blocked area at ${aspect}`, async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
 		await seed(page, { aspect, safe: 30 });

@@ -1,8 +1,10 @@
-export type AnnouncementPosition = 'top' | 'left';
+export type TAnnouncementPosition = 'top' | 'left';
+export type AnnouncementPosition = TAnnouncementPosition;
 
-export type TimeSource = 'error' | 'ntp' | 'ntp_partial';
+export type TTimeSource = 'error' | 'ntp' | 'ntp_partial';
+export type TimeSource = TTimeSource;
 
-export interface Checkpoint {
+export interface ICheckpoint {
 	id: string;
 	name: string;
 	time: string;
@@ -11,8 +13,9 @@ export interface Checkpoint {
 	color: string;
 	isCustom: boolean;
 }
+export type Checkpoint = ICheckpoint;
 
-export interface NtpInfo {
+export interface INtpInfo {
 	server?: string;
 	offset?: number;
 	delay?: number;
@@ -20,14 +23,15 @@ export interface NtpInfo {
 	errorDetails?: string;
 	hasValidMetrics?: boolean;
 }
+export type NtpInfo = INtpInfo;
 
-export interface TimeResponse {
+export interface ITimeResponse {
 	time?: string;
 	timestamp?: number;
 	timezone: string;
 	localTime?: string;
-	timeSource?: TimeSource;
-	ntp?: NtpInfo;
+	timeSource?: TTimeSource;
+	ntp?: INtpInfo;
 	status: string;
 	debug?: {
 		ntpServerConfigured: boolean;
@@ -35,8 +39,9 @@ export interface TimeResponse {
 		serverTimeSource: string;
 	};
 }
+export type TimeResponse = ITimeResponse;
 
-export interface HealthResponse {
+export interface IHealthResponse {
 	status: string;
 	timestamp: string;
 	checks: {
@@ -48,19 +53,20 @@ export interface HealthResponse {
 	};
 	version: string;
 }
+export type HealthResponse = IHealthResponse;
 
-export interface PersistedSettings {
+export interface IPersistedSettings {
 	examStartTime: string;
 	examEndTime: string;
 	examMidpointTime: string;
 	final30Time: string;
 	final15Time: string;
 	final5Time: string;
-	checkpoints: Checkpoint[];
-	customCheckpoints: Checkpoint[];
+	checkpoints: ICheckpoint[];
+	customCheckpoints: ICheckpoint[];
 	customTitle: string;
 	showTitle: boolean;
-	announcementPosition: AnnouncementPosition;
+	announcementPosition: TAnnouncementPosition;
 	announcementFontSize: number;
 	is24Hour: boolean;
 	highContrastMode: boolean;
@@ -69,3 +75,4 @@ export interface PersistedSettings {
 	showTimezone: boolean;
 	bottomDeadZoneVh: number;
 }
+export type PersistedSettings = IPersistedSettings;

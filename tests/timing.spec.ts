@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-	await page.route('**/api/time', (route) =>
+	await page.route('**/api/time*', (route) =>
 		route.fulfill({
 			json: {
 				time: '2026-10-12T03:12:04.000Z',

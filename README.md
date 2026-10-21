@@ -1,6 +1,6 @@
 # Exam Time Display
 
-A modern web application designed for displaying accurate time during exams with comprehensive exam management features. Built with SvelteKit and locked to `ntp.ui.ac.id` for authoritative time. Deployable on Netlify, Docker, or Kubernetes.
+A modern web application designed for displaying accurate time during exams with comprehensive exam management features. Built with SvelteKit and supporting `ntp.ui.ac.id` (default for campus-internal consistency) alongside official Indonesian and global NTP servers (`ntp.bsn.go.id` SNSU-BSN Stratum 1, `ntp.bmkg.go.id` BMKG Stratum 2, `time.cloudflare.com`, `time.google.com` Stratum 1). Deployable on Node, Docker, or Kubernetes.
 
 ## Projector display and operator console
 
@@ -11,12 +11,15 @@ and **Esc** to close controls. The Controls button appears when the pointer move
 The console has four tabs:
 
 - **Exam**: title, start/end times, +5/+10 minute extensions, milestone re-spacing,
-  authoritative NTP status, manual sync, and explicit rehearsal with a time slider.
+  NTP server selection (`ntp.ui.ac.id`, `ntp.bsn.go.id`, `ntp.bmkg.go.id`, `time.cloudflare.com`, `time.google.com`)
+  with contextual consistency/drift guidance, authoritative NTP status, manual sync, and explicit
+  rehearsal with a time slider.
 - **Milestones**: edit the pre-start phase and milestone titles, prompts, colours,
   times, and visibility. Prompts support `{start}`, `{end}`, and `{left}`.
 - **Notice**: edit classroom notices, use quick fills, and create bullets with `- `.
-- **Screen**: choose 16:9, 16:10, or 4:3 and reserve up to 30% at the bottom for
-  audience sightlines, with an optional guide. **High visibility mode** uses bold black
+- **Screen**: defaults to **Auto** (dynamically fitting the live screen or window aspect ratio
+  without black bars), with optional manual 16:9, 16:10, or 4:3 overrides, and reserves up to
+  30% at the bottom for audience sightlines, with an optional guide. **High visibility mode** uses bold black
   text on white, with an optional white-on-black inversion, larger seconds and countdown,
   and a simple progress bar. It hides small milestone labels and phase prompts, and shows
   short notices with line breaks preserved. The text limit is shared across all lines.

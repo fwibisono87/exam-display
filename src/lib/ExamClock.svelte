@@ -31,9 +31,6 @@
 	let viewportHeight = 0;
 
 	$: accentColor = activeCheckpoint?.color || nextCheckpoint?.color || DEFAULT_ACCENT;
-	$: panelClass = highContrastMode
-		? 'border-white bg-black text-white shadow-none'
-		: 'border-slate-300 bg-white text-slate-900';
 	$: mutedClass = highContrastMode ? 'text-slate-300' : 'text-slate-600';
 	$: labelClass = highContrastMode ? 'text-yellow-300' : 'text-slate-500';
 	$: showExamStatus = Boolean(activeCheckpoint || nextCheckpoint);
@@ -113,13 +110,10 @@
 	function syncLayoutPriority() {
 		if (!clockCanvas || typeof window === 'undefined') return;
 
-		const width = clockCanvas.clientWidth;
 		const height = clockCanvas.clientHeight;
 		clockHeight = height;
 		viewportHeight = window.innerHeight;
 		const computedStyles = window.getComputedStyle(clockCanvas);
-		const horizontalPadding =
-			parseFloat(computedStyles.paddingLeft) + parseFloat(computedStyles.paddingRight);
 		const verticalPadding =
 			parseFloat(computedStyles.paddingTop) + parseFloat(computedStyles.paddingBottom);
 		const minTimeFontSize = Math.min(getViewportMaxFontSize(), getViewportMinFontSize());

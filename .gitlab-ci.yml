@@ -6,7 +6,7 @@ Try-Build:
   stage: try-build
   image:
     name: quay.io/buildah/stable:latest
-    entrypoint: [ "" ]
+    entrypoint: ['']
   variables:
     BUILDAH_FORMAT: docker
     STORAGE_DRIVER: vfs
@@ -15,7 +15,7 @@ Try-Build:
     - buildah bud --storage-driver=$STORAGE_DRIVER --format $BUILDAH_FORMAT --isolation chroot -t compnetcsui/exam-display:$CI_COMMIT_SHA .
     - buildah push --storage-driver=$STORAGE_DRIVER compnetcsui/exam-display:$CI_COMMIT_SHA docker-archive:exam-display-image.tar:compnetcsui/exam-display:$CI_COMMIT_SHA
   artifacts:
-    name: "exam-display-image-$CI_COMMIT_SHA"
+    name: 'exam-display-image-$CI_COMMIT_SHA'
     paths:
       - exam-display-image.tar
     expire_in: 1 day
@@ -26,7 +26,7 @@ Publish:
   stage: deploy
   image:
     name: quay.io/buildah/stable:latest
-    entrypoint: [ "" ]
+    entrypoint: ['']
   variables:
     BUILDAH_FORMAT: docker
     STORAGE_DRIVER: vfs

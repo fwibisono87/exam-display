@@ -1,16 +1,43 @@
-export interface Phase {
+import {
+	ASPECT_OPTIONS,
+	DEFAULT_ASPECT_RATIO,
+	EAspectRatio,
+	NARROW_CANVAS_MAX_WIDTH_PX,
+	isAllowedAspectRatio,
+	type TAspectRatioValue
+} from '../constants/enums/aspect_ratios';
+import {
+	DEFAULT_NTP_PROVIDER,
+	ENtpProvider,
+	NTP_PROVIDER_OPTIONS,
+	isAllowedNtpProvider,
+	type TNtpProviderValue
+} from '../constants/enums/ntp_providers';
+
+export {
+	ASPECT_OPTIONS,
+	EAspectRatio,
+	EAspectRatio as AspectRatio,
+	ENtpProvider,
+	ENtpProvider as NtpProvider,
+	NTP_PROVIDER_OPTIONS
+};
+
+export interface IPhase {
 	title: string;
 	prompt: string;
 	color: string;
 }
+export type Phase = IPhase;
 
-export interface Milestone extends Phase {
+export interface IMilestone extends IPhase {
 	id: string;
 	time: string;
 	enabled: boolean;
 }
+export type Milestone = IMilestone;
 
-export interface ProjectorConfig {
+export interface IProjectorConfig {
 	title: string;
 	/** Null start or end means no exam schedule: the projector shows only the clock. */
 	start: string | null;
@@ -19,34 +46,37 @@ export interface ProjectorConfig {
 	showNotice: boolean;
 	safe: number;
 	guide: boolean;
-	aspect: '16:9' | '16:10' | '4:3';
+	aspect: TAspectRatioValue;
+	ntpServer: TNtpProviderValue;
 	highVisibility: boolean;
 	inverted: boolean;
-	before: Phase;
-	milestones: Milestone[];
+	before: IPhase;
+	milestones: IMilestone[];
 }
+export type ProjectorConfig = IProjectorConfig;
 
-export interface Rehearsal {
+export interface IRehearsal {
 	enabled: boolean;
 	base: number;
 	at: number;
 	fail: boolean;
 }
+export type Rehearsal = IRehearsal;
 
-export interface ProjectorState {
-	cfg: ProjectorConfig;
-	rehearsal: Rehearsal;
+export interface IProjectorState {
+	cfg: IProjectorConfig;
+	rehearsal: IRehearsal;
 }
+export type ProjectorState = IProjectorState;
 
 export const STORAGE_KEY = 'examDisplay.v2';
 
 const LEGACY_SETTINGS_KEY = 'examSettings';
 const LEGACY_NOTICE_KEY = 'examAnnouncements';
-const ASPECTS = ['16:9', '16:10', '4:3'] as const;
 const HEX_COLOR = /^#[\da-f]{6}$/i;
 /** Built-in milestones whose times are locked to the exam schedule. */
 const BUILTIN_IDS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'];
-const BUILTIN_DEFAULTS: Milestone[] = [
+const BUILTIN_DEFAULTS: IMilestone[] = [
 	{
 		id: 'm1',
 		time: '09:00',
@@ -106,7 +136,8 @@ export function defaultConfig(): ProjectorConfig {
 		showNotice: true,
 		safe: 12,
 		guide: false,
-		aspect: '16:9',
+		aspect: DEFAULT_ASPECT_RATIO,
+		ntpServer: DEFAULT_NTP_PROVIDER,
 		highVisibility: false,
 		inverted: false,
 		before: { title: 'Not started', prompt: 'Starts at {start}', color: '#15171b' },
@@ -187,9 +218,8 @@ function normalizeConfig(value: unknown): ProjectorConfig {
 	if (!suppliedMilestones) {
 		milestones.splice(0, milestones.length, ...fallback.milestones.map((item) => ({ ...item })));
 	}
-	const aspect = ASPECTS.includes(value.aspect as (typeof ASPECTS)[number])
-		? (value.aspect as ProjectorConfig['aspect'])
-		: fallback.aspect;
+	const aspect = isAllowedAspectRatio(value.aspect) ? value.aspect : fallback.aspect;
+	const ntpServer = isAllowedNtpProvider(value.ntpServer) ? value.ntpServer : fallback.ntpServer;
 	return respaceMilestones({
 		title: typeof value.title === 'string' ? value.title : fallback.title,
 		start: optionalTime(value.start, fallback.start),
@@ -202,6 +232,7 @@ function normalizeConfig(value: unknown): ProjectorConfig {
 				: fallback.safe,
 		guide: typeof value.guide === 'boolean' ? value.guide : fallback.guide,
 		aspect,
+		ntpServer,
 		highVisibility: value.highVisibility === true,
 		inverted: value.inverted === true,
 		before: normalizePhase(value.before, fallback.before),
@@ -490,12 +521,20 @@ export function respaceMilestones(cfg: ProjectorConfig): ProjectorConfig {
 }
 
 /** Share the text budget across lines, preserving breaks without charging for them. */
-export function visibilityNotice(cfg: ProjectorConfig): { text: string; shortened: boolean } {
+export function visibilityNotice(
+	cfg: ProjectorConfig,
+	effectiveCanvasWidth?: number
+): { text: string; shortened: boolean } {
 	const lines = cfg.notice
 		.split('\n')
 		.map((line) => line.trim())
 		.filter(Boolean);
-	const narrow = cfg.aspect === '4:3';
+	const narrow =
+		cfg.aspect === EAspectRatio.STANDARD_4_3 ||
+		(cfg.aspect === EAspectRatio.AUTO &&
+			typeof effectiveCanvasWidth === 'number' &&
+			Number.isFinite(effectiveCanvasWidth) &&
+			effectiveCanvasWidth <= NARROW_CANVAS_MAX_WIDTH_PX);
 	const blocked = cfg.safe >= 20;
 	const limit = narrow && blocked ? 48 : narrow || blocked ? 80 : 120;
 	const text = lines.join('\n');
