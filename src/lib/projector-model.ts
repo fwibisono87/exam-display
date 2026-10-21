@@ -1,32 +1,43 @@
 import {
 	ASPECT_OPTIONS,
-	AspectRatio,
 	DEFAULT_ASPECT_RATIO,
+	EAspectRatio,
 	NARROW_CANVAS_MAX_WIDTH_PX,
-	isAllowedAspectRatio
+	isAllowedAspectRatio,
+	type TAspectRatioValue
 } from '../constants/enums/aspect_ratios';
 import {
 	DEFAULT_NTP_PROVIDER,
+	ENtpProvider,
 	NTP_PROVIDER_OPTIONS,
-	NtpProvider,
-	isAllowedNtpProvider
+	isAllowedNtpProvider,
+	type TNtpProviderValue
 } from '../constants/enums/ntp_providers';
 
-export { ASPECT_OPTIONS, AspectRatio, NTP_PROVIDER_OPTIONS, NtpProvider };
+export {
+	ASPECT_OPTIONS,
+	EAspectRatio,
+	EAspectRatio as AspectRatio,
+	ENtpProvider,
+	ENtpProvider as NtpProvider,
+	NTP_PROVIDER_OPTIONS
+};
 
-export interface Phase {
+export interface IPhase {
 	title: string;
 	prompt: string;
 	color: string;
 }
+export type Phase = IPhase;
 
-export interface Milestone extends Phase {
+export interface IMilestone extends IPhase {
 	id: string;
 	time: string;
 	enabled: boolean;
 }
+export type Milestone = IMilestone;
 
-export interface ProjectorConfig {
+export interface IProjectorConfig {
 	title: string;
 	/** Null start or end means no exam schedule: the projector shows only the clock. */
 	start: string | null;
@@ -35,25 +46,28 @@ export interface ProjectorConfig {
 	showNotice: boolean;
 	safe: number;
 	guide: boolean;
-	aspect: AspectRatio | `${AspectRatio}`;
-	ntpServer: NtpProvider | `${NtpProvider}`;
+	aspect: TAspectRatioValue;
+	ntpServer: TNtpProviderValue;
 	highVisibility: boolean;
 	inverted: boolean;
-	before: Phase;
-	milestones: Milestone[];
+	before: IPhase;
+	milestones: IMilestone[];
 }
+export type ProjectorConfig = IProjectorConfig;
 
-export interface Rehearsal {
+export interface IRehearsal {
 	enabled: boolean;
 	base: number;
 	at: number;
 	fail: boolean;
 }
+export type Rehearsal = IRehearsal;
 
-export interface ProjectorState {
-	cfg: ProjectorConfig;
-	rehearsal: Rehearsal;
+export interface IProjectorState {
+	cfg: IProjectorConfig;
+	rehearsal: IRehearsal;
 }
+export type ProjectorState = IProjectorState;
 
 export const STORAGE_KEY = 'examDisplay.v2';
 
@@ -62,7 +76,7 @@ const LEGACY_NOTICE_KEY = 'examAnnouncements';
 const HEX_COLOR = /^#[\da-f]{6}$/i;
 /** Built-in milestones whose times are locked to the exam schedule. */
 const BUILTIN_IDS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'];
-const BUILTIN_DEFAULTS: Milestone[] = [
+const BUILTIN_DEFAULTS: IMilestone[] = [
 	{
 		id: 'm1',
 		time: '09:00',
@@ -516,8 +530,8 @@ export function visibilityNotice(
 		.map((line) => line.trim())
 		.filter(Boolean);
 	const narrow =
-		cfg.aspect === AspectRatio.STANDARD_4_3 ||
-		(cfg.aspect === AspectRatio.AUTO &&
+		cfg.aspect === EAspectRatio.STANDARD_4_3 ||
+		(cfg.aspect === EAspectRatio.AUTO &&
 			typeof effectiveCanvasWidth === 'number' &&
 			Number.isFinite(effectiveCanvasWidth) &&
 			effectiveCanvasWidth <= NARROW_CANVAS_MAX_WIDTH_PX);

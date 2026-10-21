@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { ProjectorConfig } from '$lib/projector-model';
+	import type { IProjectorConfig } from '$lib/projector-model';
 	import {
 		fillText,
 		formatDuration,
@@ -9,17 +9,17 @@
 		visibilityNotice
 	} from '$lib/projector-model';
 	import {
-		AspectRatio,
 		CANVAS_HEIGHT_PX,
 		CANVAS_WIDTH_16_10_PX,
 		CANVAS_WIDTH_16_9_PX,
 		CANVAS_WIDTH_4_3_PX,
+		EAspectRatio,
 		MAX_DYNAMIC_CANVAS_WIDTH_PX,
 		MIN_DYNAMIC_CANVAS_WIDTH_PX
 	} from '../constants/enums/aspect_ratios';
 	import { DEFAULT_NTP_PROVIDER } from '../constants/enums/ntp_providers';
 
-	export let cfg: ProjectorConfig;
+	export let cfg: IProjectorConfig;
 	export let now: number;
 	export let error: boolean;
 	export let ntpUnavailable = false;
@@ -59,13 +59,13 @@
 	let frame = 0;
 
 	function computeCanvasWidth(
-		aspect: ProjectorConfig['aspect'],
+		aspect: IProjectorConfig['aspect'],
 		width: number,
 		height: number
 	): number {
-		if (aspect === AspectRatio.WIDESCREEN_16_10) return CANVAS_WIDTH_16_10_PX;
-		if (aspect === AspectRatio.STANDARD_4_3) return CANVAS_WIDTH_4_3_PX;
-		if (aspect === AspectRatio.WIDESCREEN_16_9) return CANVAS_WIDTH_16_9_PX;
+		if (aspect === EAspectRatio.WIDESCREEN_16_10) return CANVAS_WIDTH_16_10_PX;
+		if (aspect === EAspectRatio.STANDARD_4_3) return CANVAS_WIDTH_4_3_PX;
+		if (aspect === EAspectRatio.WIDESCREEN_16_9) return CANVAS_WIDTH_16_9_PX;
 		if (width <= 0 || height <= 0) return CANVAS_WIDTH_16_9_PX;
 		return Math.round(
 			Math.max(

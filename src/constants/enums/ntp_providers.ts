@@ -22,7 +22,7 @@
  *   synchronized to Cloudflare's Stratum 1 GPS/atomic reference clocks.
  *   Source: https://developers.cloudflare.com/time-services/ntp/
  */
-export enum NtpProvider {
+export enum ENtpProvider {
 	UI_CAMPUS = 'ntp.ui.ac.id',
 	BSN_STRATUM_1 = 'ntp.bsn.go.id',
 	BMKG = 'ntp.bmkg.go.id',
@@ -30,29 +30,35 @@ export enum NtpProvider {
 	GOOGLE_STRATUM_1 = 'time.google.com'
 }
 
-export const DEFAULT_NTP_PROVIDER: NtpProvider = NtpProvider.UI_CAMPUS;
+export { ENtpProvider as NtpProvider };
 
-export const NTP_PROVIDERS: readonly NtpProvider[] = [
-	NtpProvider.UI_CAMPUS,
-	NtpProvider.BSN_STRATUM_1,
-	NtpProvider.BMKG,
-	NtpProvider.CLOUDFLARE,
-	NtpProvider.GOOGLE_STRATUM_1
-];
+export type TNtpProviderValue = ENtpProvider | `${ENtpProvider}`;
 
-export interface NtpProviderOption {
-	id: NtpProvider;
+export type TNtpStratum = 1 | 2 | 3;
+
+export interface INtpProviderOption {
+	id: ENtpProvider;
 	label: string;
 	description: string;
 	sourceUrl: string;
-	stratum: 1 | 2 | 3;
+	stratum: TNtpStratum;
 	isWarning?: boolean;
 }
 
-export const NTP_PROVIDER_OPTIONS: readonly NtpProviderOption[] = [
+export const DEFAULT_NTP_PROVIDER: ENtpProvider = ENtpProvider.UI_CAMPUS;
+
+export const NTP_PROVIDERS: readonly ENtpProvider[] = [
+	ENtpProvider.UI_CAMPUS,
+	ENtpProvider.BSN_STRATUM_1,
+	ENtpProvider.BMKG,
+	ENtpProvider.CLOUDFLARE,
+	ENtpProvider.GOOGLE_STRATUM_1
+];
+
+export const NTP_PROVIDER_OPTIONS: readonly INtpProviderOption[] = [
 	{
-		id: NtpProvider.UI_CAMPUS,
-		label: `${NtpProvider.UI_CAMPUS} · UI Campus (Default, Stratum 3)`,
+		id: ENtpProvider.UI_CAMPUS,
+		label: `${ENtpProvider.UI_CAMPUS} · UI Campus (Default, Stratum 3)`,
 		description:
 			'Maintains internal time consistency across UI campus servers and machines, but lags ~5 seconds behind global real clocks. Avoid mixing with external clocks not synced to ntp.ui.ac.id.',
 		sourceUrl: 'https://dsti.ui.ac.id',
@@ -60,38 +66,38 @@ export const NTP_PROVIDER_OPTIONS: readonly NtpProviderOption[] = [
 		isWarning: true
 	},
 	{
-		id: NtpProvider.BSN_STRATUM_1,
-		label: `${NtpProvider.BSN_STRATUM_1} · SNSU-BSN Indonesia (Stratum 1)`,
+		id: ENtpProvider.BSN_STRATUM_1,
+		label: `${ENtpProvider.BSN_STRATUM_1} · SNSU-BSN Indonesia (Stratum 1)`,
 		description:
 			'Official Indonesian national time standard UTC(IDN) operated by SNSU-BSN (Stratum 1 Cesium 1PPS primary reference clock). Accurate to global real time.',
 		sourceUrl: 'https://snsu.bsn.go.id',
 		stratum: 1
 	},
 	{
-		id: NtpProvider.BMKG,
-		label: `${NtpProvider.BMKG} · BMKG Indonesia (Stratum 2)`,
+		id: ENtpProvider.BMKG,
+		label: `${ENtpProvider.BMKG} · BMKG Indonesia (Stratum 2)`,
 		description:
 			'BMKG time server (Stratum 2, synchronized upstream to SNSU-BSN 103.164.45.50). Accurate to global real time; ensure all displays in the room use the same source.',
 		sourceUrl: 'https://jam.bmkg.go.id',
 		stratum: 2
 	},
 	{
-		id: NtpProvider.CLOUDFLARE,
-		label: `${NtpProvider.CLOUDFLARE} · Cloudflare Anycast (Stratum 3 Edge)`,
+		id: ENtpProvider.CLOUDFLARE,
+		label: `${ENtpProvider.CLOUDFLARE} · Cloudflare Anycast (Stratum 3 Edge)`,
 		description:
 			'Global anycast time service with local Jakarta edge nodes synchronized to Stratum 1 atomic references. Accurate to global real time.',
 		sourceUrl: 'https://developers.cloudflare.com/time-services/ntp/',
 		stratum: 3
 	},
 	{
-		id: NtpProvider.GOOGLE_STRATUM_1,
-		label: `${NtpProvider.GOOGLE_STRATUM_1} · Google Public NTP (Stratum 1)`,
+		id: ENtpProvider.GOOGLE_STRATUM_1,
+		label: `${ENtpProvider.GOOGLE_STRATUM_1} · Google Public NTP (Stratum 1)`,
 		description: 'Global Stratum 1 atomic clock fleet (refId: GOOG). Accurate to global real time.',
 		sourceUrl: 'https://developers.google.com/time',
 		stratum: 1
 	}
 ];
 
-export function isAllowedNtpProvider(value: unknown): value is NtpProvider {
+export function isAllowedNtpProvider(value: unknown): value is ENtpProvider {
 	return typeof value === 'string' && (NTP_PROVIDERS as readonly string[]).includes(value);
 }

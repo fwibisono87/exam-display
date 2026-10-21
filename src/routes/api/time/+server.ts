@@ -2,29 +2,29 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { time as getSntpTime } from '@hapi/sntp';
-import type { NtpInfo, TimeResponse, TimeSource } from '$lib/types';
+import type { INtpInfo, ITimeResponse, TTimeSource } from '$lib/types';
 import {
 	DEFAULT_NTP_PROVIDER,
+	ENtpProvider,
 	NTP_PROVIDERS,
-	isAllowedNtpProvider,
-	type NtpProvider
+	isAllowedNtpProvider
 } from '../../../constants/enums/ntp_providers';
 
 const NTP_TIMEOUT_MS = 5000;
 
-interface NTPResult {
+interface INtpResult {
 	time: Date;
 	offset: number;
 	delay: number;
 	hasValidMetrics: boolean;
 }
 
-interface NTPError {
+interface INtpError {
 	error: string;
 	details?: string;
 }
 
-async function getNTPTime(server: string): Promise<NTPResult | NTPError> {
+async function getNTPTime(server: string): Promise<INtpResult | INtpError> {
 	try {
 		const result = await getSntpTime({
 			host: server,
@@ -67,7 +67,7 @@ export const GET: RequestHandler = async ({ url }) => {
 	const requestedServer = url.searchParams.get('server')?.trim();
 
 	if (requestedServer && !isAllowedNtpProvider(requestedServer)) {
-		const response: TimeResponse = {
+		const response: ITimeResponse = {
 			timezone: configuredTimezone,
 			timeSource: 'error',
 			ntp: {
@@ -85,7 +85,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		return json(response, { status: 400 });
 	}
 
-	const ntpServer: NtpProvider =
+	const ntpServer: ENtpProvider =
 		requestedServer && isAllowedNtpProvider(requestedServer)
 			? requestedServer
 			: env.NTP_SERVER && isAllowedNtpProvider(env.NTP_SERVER)
@@ -93,8 +93,8 @@ export const GET: RequestHandler = async ({ url }) => {
 				: DEFAULT_NTP_PROVIDER;
 
 	let serverTime: Date | null = null;
-	let timeSource: TimeSource = 'error';
-	let ntpInfo: NtpInfo = { server: ntpServer };
+	let timeSource: TTimeSource = 'error';
+	let ntpInfo: INtpInfo = { server: ntpServer };
 
 	const ntpResult = await getNTPTime(ntpServer);
 
@@ -114,7 +114,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			ntpInfo.delay = Math.round(ntpResult.delay);
 		}
 	} else {
-		const ntpError = ntpResult as NTPError;
+		const ntpError = ntpResult as INtpError;
 
 		ntpInfo = {
 			server: ntpServer,
@@ -122,7 +122,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			errorDetails: ntpError.details
 		};
 
-		const response: TimeResponse = {
+		const response: ITimeResponse = {
 			timezone: configuredTimezone,
 			timeSource,
 			ntp: ntpInfo,
@@ -148,7 +148,7 @@ export const GET: RequestHandler = async ({ url }) => {
 		second: '2-digit'
 	});
 
-	const response: TimeResponse = {
+	const response: ITimeResponse = {
 		time: serverTime.toISOString(),
 		timestamp: serverTime.getTime(),
 		timezone: configuredTimezone,

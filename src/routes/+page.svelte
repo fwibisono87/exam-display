@@ -7,17 +7,17 @@
 		defaultConfig,
 		loadState,
 		toSeconds,
-		type ProjectorConfig,
-		type Rehearsal
+		type IProjectorConfig,
+		type IRehearsal
 	} from '$lib/projector-model';
-	import type { NtpInfo, TimeResponse, TimeSource } from '$lib/types';
+	import type { INtpInfo, ITimeResponse, TTimeSource } from '$lib/types';
 	import { DEFAULT_NTP_PROVIDER } from '../constants/enums/ntp_providers';
 
 	let cfg = defaultConfig();
-	let rehearsal: Rehearsal = { enabled: false, base: 0, at: 0, fail: false };
+	let rehearsal: IRehearsal = { enabled: false, base: 0, at: 0, fail: false };
 	let now = 0;
-	let timeSource: TimeSource = 'error';
-	let ntpInfo: NtpInfo = { server: DEFAULT_NTP_PROVIDER };
+	let timeSource: TTimeSource = 'error';
+	let ntpInfo: INtpInfo = { server: DEFAULT_NTP_PROVIDER };
 	let timezone = 'Asia/Jakarta';
 	let healthStatus = 'checking…';
 	let open = false;
@@ -79,7 +79,7 @@
 			const response = await fetch(`/api/time?server=${encodeURIComponent(requestedServer)}`, {
 				signal: controller.signal
 			});
-			const data: TimeResponse = await response.json();
+			const data: ITimeResponse = await response.json();
 			const timestamp = Date.parse(data.time || '');
 			if (
 				!response.ok ||
@@ -94,7 +94,7 @@
 			timezone = data.timezone;
 			liveTimestamp = timestamp;
 			liveAnchor = performance.now();
-			timeSource = data.timeSource as TimeSource;
+			timeSource = data.timeSource as TTimeSource;
 			ntpInfo = data.ntp || { server: requestedServer };
 			tick();
 		} catch (error) {
@@ -144,14 +144,14 @@
 		}
 	}
 
-	function updateConfig(value: ProjectorConfig) {
+	function updateConfig(value: IProjectorConfig) {
 		const serverChanged = value.ntpServer !== cfg.ntpServer;
 		cfg = value;
 		persist();
 		tick();
 		if (serverChanged) void syncTime(true);
 	}
-	function updateRehearsal(value: Rehearsal) {
+	function updateRehearsal(value: IRehearsal) {
 		rehearsal = value;
 		persist();
 		tick();

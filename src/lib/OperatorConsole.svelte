@@ -1,6 +1,7 @@
 <script lang="ts">
 	import {
 		ASPECT_OPTIONS,
+		ENtpProvider,
 		NTP_PROVIDER_OPTIONS,
 		examWindow,
 		extendExam,
@@ -13,25 +14,19 @@
 		toSeconds,
 		visibilityNotice
 	} from '$lib/projector-model';
-	import type {
-		Milestone,
-		NtpProvider,
-		Phase,
-		ProjectorConfig,
-		Rehearsal
-	} from '$lib/projector-model';
-	import type { NtpInfo } from '$lib/types';
+	import type { IMilestone, IPhase, IProjectorConfig, IRehearsal } from '$lib/projector-model';
+	import type { INtpInfo, TTimeSource } from '$lib/types';
 
-	export let cfg: ProjectorConfig;
-	export let rehearsal: Rehearsal;
+	export let cfg: IProjectorConfig;
+	export let rehearsal: IRehearsal;
 	export let now: number;
 	export let consoleOnly = false;
-	export let timeSource: 'error' | 'ntp' | 'ntp_partial';
-	export let ntpInfo: NtpInfo;
+	export let timeSource: TTimeSource;
+	export let ntpInfo: INtpInfo;
 	export let healthStatus: string;
 	export let timezone: string;
-	export let onConfig: (cfg: ProjectorConfig) => void;
-	export let onRehearsal: (r: Rehearsal) => void;
+	export let onConfig: (cfg: IProjectorConfig) => void;
+	export let onRehearsal: (r: IRehearsal) => void;
 	export let onClose: () => void;
 	export let onPopOut: () => void;
 	export let onSync: () => void;
@@ -40,14 +35,30 @@
 	export let onCalibration: (value: boolean) => void = () => {};
 	export let noticeOverflow = false;
 
-	type Tab = 'exam' | 'milestones' | 'notice' | 'screen';
-	const tabs: { id: Tab; label: string }[] = [
+	type TConsoleTab = 'exam' | 'milestones' | 'notice' | 'screen';
+
+	interface IConsoleTabOption {
+		id: TConsoleTab;
+		label: string;
+	}
+
+	interface ISwatchOption {
+		name: string;
+		color: string;
+	}
+
+	interface INoticePreset {
+		label: string;
+		text: string;
+	}
+
+	const CONSOLE_TABS: readonly IConsoleTabOption[] = [
 		{ id: 'exam', label: 'Exam' },
 		{ id: 'milestones', label: 'Milestones' },
 		{ id: 'notice', label: 'Notice' },
 		{ id: 'screen', label: 'Screen' }
 	];
-	const swatches = [
+	const COLOR_SWATCHES: readonly ISwatchOption[] = [
 		{ name: 'Ink', color: '#15171b' },
 		{ name: 'Blue', color: '#1f5fbf' },
 		{ name: 'Green', color: '#1d7a4a' },
@@ -55,7 +66,7 @@
 		{ name: 'Red', color: '#c4262e' },
 		{ name: 'Purple', color: '#6b3fb0' }
 	];
-	const presets = [
+	const NOTICE_PRESETS: readonly INoticePreset[] = [
 		{ label: 'Phones', text: 'Phones off and in your bag. Raise your hand to leave the room.' },
 		{ label: 'ID card', text: 'Put your student ID card on the desk.' },
 		{
@@ -64,7 +75,7 @@
 		},
 		{ label: 'Clear', text: '' }
 	];
-	let activeTab: Tab = 'exam';
+	let activeTab: TConsoleTab = 'exam';
 	let openPhaseId = 'before';
 	let tabButtons: HTMLButtonElement[] = [];
 
@@ -91,15 +102,15 @@
 	$: selectedNtpOption =
 		NTP_PROVIDER_OPTIONS.find((option) => option.id === cfg.ntpServer) ?? NTP_PROVIDER_OPTIONS[0];
 
-	function patchConfig(patch: Partial<ProjectorConfig>) {
+	function patchConfig(patch: Partial<IProjectorConfig>) {
 		onConfig({ ...cfg, ...patch });
 	}
 
-	function patchSchedule(patch: Pick<Partial<ProjectorConfig>, 'start' | 'end'>) {
+	function patchSchedule(patch: Pick<Partial<IProjectorConfig>, 'start' | 'end'>) {
 		onConfig(respaceMilestones({ ...cfg, ...patch }));
 	}
 
-	function patchPhase(id: string, patch: Partial<Phase>) {
+	function patchPhase(id: string, patch: Partial<IPhase>) {
 		if (id === 'before') {
 			onConfig({ ...cfg, before: { ...cfg.before, ...patch } });
 			return;
@@ -112,7 +123,7 @@
 		});
 	}
 
-	function patchMilestone(id: string, patch: Partial<Milestone>) {
+	function patchMilestone(id: string, patch: Partial<IMilestone>) {
 		onConfig({
 			...cfg,
 			milestones: cfg.milestones.map((milestone) =>
@@ -122,8 +133,8 @@
 	}
 
 	function chooseTab(index: number) {
-		const next = (index + tabs.length) % tabs.length;
-		activeTab = tabs[next].id;
+		const next = (index + CONSOLE_TABS.length) % CONSOLE_TABS.length;
+		activeTab = CONSOLE_TABS[next].id;
 		tabButtons[next]?.focus();
 	}
 
@@ -139,7 +150,7 @@
 			chooseTab(0);
 		} else if (event.key === 'End') {
 			event.preventDefault();
-			chooseTab(tabs.length - 1);
+			chooseTab(CONSOLE_TABS.length - 1);
 		}
 	}
 
@@ -163,7 +174,7 @@
 		const time = scheduled
 			? Math.min(resolved.end - 60, Math.max(resolved.now + 300, resolved.start))
 			: resolved.now + 300;
-		const milestone: Milestone = {
+		const milestone: IMilestone = {
 			id,
 			time: formatHM(time),
 			title: 'New milestone',
@@ -217,7 +228,7 @@
 	</header>
 
 	<div class="tabs" role="tablist" aria-label="Console sections">
-		{#each tabs as tab, index (tab.id)}
+		{#each CONSOLE_TABS as tab, index (tab.id)}
 			<button
 				bind:this={tabButtons[index]}
 				id={`console-tab-${tab.id}`}
@@ -337,7 +348,7 @@
 						data-testid="ntp-server-select"
 						value={cfg.ntpServer}
 						on:change={(event) =>
-							patchConfig({ ntpServer: event.currentTarget.value as NtpProvider })}
+							patchConfig({ ntpServer: event.currentTarget.value as ENtpProvider })}
 					>
 						{#each NTP_PROVIDER_OPTIONS as option (option.id)}
 							<option value={option.id}>{option.label}</option>
@@ -467,7 +478,7 @@
 								<div class="field">
 									<span class="eyebrow">Screen colour</span>
 									<div class="swatches">
-										{#each swatches as swatch (swatch.name)}
+										{#each COLOR_SWATCHES as swatch (swatch.name)}
 											<button
 												class:selected={item.color.toLowerCase() === swatch.color}
 												class="swatch"
@@ -540,7 +551,7 @@
 			<div class="field-stack">
 				<span class="eyebrow">Quick fill</span>
 				<div class="preset-list">
-					{#each presets as preset (preset.label)}<button
+					{#each NOTICE_PRESETS as preset (preset.label)}<button
 							class="outline-button preset"
 							type="button"
 							on:click={() => patchConfig({ notice: preset.text })}>{preset.label}</button

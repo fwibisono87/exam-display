@@ -117,8 +117,7 @@ h3,
 body.high-contrast .control-slider {
 	border-color: #ffffff;
 	background:
-		linear-gradient(to right, rgba(241, 194, 27, 0.35), rgba(241, 194, 27, 0.35)),
-		#000000;
+		linear-gradient(to right, rgba(241, 194, 27, 0.35), rgba(241, 194, 27, 0.35)), #000000;
 }
 
 body.high-contrast .control-slider::-webkit-slider-thumb,
