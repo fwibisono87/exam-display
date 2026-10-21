@@ -34,6 +34,8 @@
 	let errorTitleElement: HTMLElement;
 	let errorCopyElement: HTMLElement;
 	let visibilityNoticeElement: HTMLElement;
+	let calibrationOverlayElement: HTMLElement;
+	let calibrationDirectionsElement: HTMLElement;
 	let noticeOverflow = false;
 	let reportedNoticeOverflow = false;
 	let noticeClampLines = 1;
@@ -46,8 +48,21 @@
 	let observer: ResizeObserver | undefined;
 	let frame = 0;
 
-	$: canvasWidth = cfg.aspect === '16:10' ? 1728 : cfg.aspect === '4:3' ? 1440 : 1920;
-	$: railWidth = canvasWidth >= 1900 ? 620 : canvasWidth >= 1700 ? 580 : 520;
+	function computeCanvasWidth(
+		aspect: ProjectorConfig['aspect'],
+		width: number,
+		height: number
+	): number {
+		if (aspect === '16:10') return 1728;
+		if (aspect === '4:3') return 1440;
+		if (aspect === '16:9') return 1920;
+		if (width <= 0 || height <= 0) return 1920;
+		return Math.round(Math.max(1280, Math.min(2880, (width / height) * CANVAS_HEIGHT)));
+	}
+
+	$: canvasWidth = computeCanvasWidth(cfg.aspect, viewportWidth, viewportHeight);
+	$: railWidth =
+		canvasWidth >= 1900 ? 620 : canvasWidth >= 1700 ? 580 : canvasWidth >= 1400 ? 520 : 480;
 	$: safePx = Math.round((CANVAS_HEIGHT * Math.max(0, Math.min(30, cfg.safe))) / 100);
 	$: phaseState = resolvePhase(cfg, now);
 	$: phase = phaseState.phase;
@@ -58,10 +73,11 @@
 	$: secondsLabel = String(((Math.floor(now) % 60) + 60) % 60).padStart(2, '0');
 	$: noticeLines = parseNotice(cfg.notice);
 	$: hasNotice = cfg.showNotice && noticeLines.length > 0;
-	$: visibilityNoticeState = visibilityNotice(cfg);
+	$: visibilityNoticeState = visibilityNotice(cfg, canvasWidth);
 	$: visibilityNoticeText = visibilityNoticeState.text;
 	$: highVisibility = cfg.highVisibility;
 	$: inverted = cfg.inverted;
+	$: activeNtpServer = cfg.ntpServer || 'ntp.ui.ac.id';
 	$: columnScale = railWidth / 620;
 	$: railEmpty = (error || !phaseState.scheduled) && !hasNotice;
 	$: layoutRailWidth = railEmpty ? 0 : railWidth;
@@ -99,7 +115,7 @@
 		});
 	})();
 	$: progress = Math.max(0, Math.min(100, phaseState.progress));
-	$: fitKey = `${JSON.stringify(cfg)}|${now}|${error}|${rehearsal}|${controlsOpen}|${calibration}`;
+	$: fitKey = `${JSON.stringify(cfg)}|${canvasWidth}|${now}|${error}|${rehearsal}|${controlsOpen}|${calibration}`;
 	$: if (mounted && fitKey) scheduleFit();
 
 	function toClockSeconds(value: string): number {
@@ -117,21 +133,23 @@
 			});
 	}
 
-	function updateGeometry(open = controlsOpen, width = canvasWidth) {
+	function updateGeometry(open = controlsOpen, aspect = cfg.aspect) {
 		if (typeof window === 'undefined') return;
 		viewportWidth = window.innerWidth;
 		viewportHeight = window.innerHeight;
 		const available = Math.max(0, window.innerWidth - (open && window.innerWidth > 1100 ? 460 : 0));
+		const width = computeCanvasWidth(aspect, viewportWidth, viewportHeight);
+		canvasWidth = width;
 		scale = Math.max(0.01, Math.min(available / width, viewportHeight / CANVAS_HEIGHT));
 	}
 
 	function handleResize() {
-		updateGeometry(controlsOpen, canvasWidth);
+		updateGeometry(controlsOpen, cfg.aspect);
 		scheduleFit();
 	}
 
 	function fitText() {
-		updateGeometry(controlsOpen, canvasWidth);
+		updateGeometry(controlsOpen, cfg.aspect);
 		if (!highVisibility || calibration || !hasNotice) reportNoticeOverflow(false);
 		const nk = columnScale;
 		const titleBase = phaseTitle.length <= 12 ? 104 : phaseTitle.length <= 22 ? 84 : 66;
@@ -250,6 +268,18 @@
 				else titleSize -= 2;
 			}
 		}
+		if (calibration && calibrationOverlayElement && calibrationDirectionsElement) {
+			let directionsSize = 48;
+			for (let i = 0; i < 34; i += 1) {
+				calibrationDirectionsElement.style.fontSize = `${directionsSize}px`;
+				if (
+					calibrationOverlayElement.scrollHeight <= calibrationOverlayElement.clientHeight + 1 ||
+					directionsSize <= 14
+				)
+					break;
+				directionsSize -= 1;
+			}
+		}
 		if (nextPhaseTitlePx !== phaseTitlePx) phaseTitlePx = nextPhaseTitlePx;
 		if (nextPromptPx !== promptPx) promptPx = nextPromptPx;
 		if (nextNoticePx !== noticePx) noticePx = nextNoticePx;
@@ -272,7 +302,7 @@
 	}
 
 	onMount(() => {
-		updateGeometry(controlsOpen, canvasWidth);
+		updateGeometry(controlsOpen, cfg.aspect);
 		observer = new ResizeObserver(() => {
 			updateGeometry();
 			scheduleFit();
@@ -302,6 +332,7 @@
 		{#if calibration}
 			<section
 				class="calibration-overlay"
+				bind:this={calibrationOverlayElement}
 				data-testid="calibration-screen"
 				aria-label="Calibration screen"
 			>
@@ -321,7 +352,7 @@
 				<div class="calibration-bands" aria-label="Black and white contrast bands">
 					<span></span><span></span><span></span><span></span>
 				</div>
-				<div class="calibration-directions">
+				<div class="calibration-directions" bind:this={calibrationDirectionsElement}>
 					Check every digit from the back row with exam lighting. <br />
 					Kami TIDAK bertanggung-jawab atas KEAKURATAN mau pun KERUGIAN yang mungkin terjadi akibat memanfaatkan
 					situs ini. HARAP MENANGGUNG SENDIRI SEGALA RISIKO! Jangan lupa mengungkapkan/ menuliskan penghargaan
@@ -348,7 +379,9 @@
 							class="ntp-status"
 							class:error={error || ntpUnavailable}
 							data-testid="ntp-status"
-							title={ntpUnavailable ? 'NTP unreachable · using local machine time' : ''}
+							title={ntpUnavailable
+								? `${activeNtpServer} unreachable · using local machine time`
+								: `Synchronized with ${activeNtpServer}`}
 							class:rehearsal
 							aria-label={rehearsal
 								? 'Rehearsal preview'
@@ -356,15 +389,15 @@
 									? 'NTP unavailable · local machine clock'
 									: error
 										? 'Clock unavailable'
-										: 'Clock synchronized'}
+										: `Clock synchronized · ${activeNtpServer}`}
 						>
 							<span class="ntp-dot"></span>{rehearsal
 								? 'REHEARSAL'
 								: ntpUnavailable
 									? 'LOCAL CLOCK'
 									: highVisibility
-										? 'NTP SYNCED'
-										: 'NTP'}
+										? `NTP SYNCED · ${activeNtpServer}`
+										: `NTP · ${activeNtpServer}`}
 						</div>
 					</header>
 
@@ -383,7 +416,7 @@
 							<div class="error-detail">
 								{rehearsal
 									? 'Simulated clock failure · rehearsal'
-									: 'ntp.ui.ac.id · no response · retrying in 30 s'}
+									: `${activeNtpServer} · no response · retrying in 30 s`}
 							</div>
 						</section>
 					{:else}

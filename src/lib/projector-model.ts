@@ -1,3 +1,7 @@
+import { NTP_SERVERS, type NtpServer } from './types';
+
+export { NTP_SERVERS, type NtpServer };
+
 export interface Phase {
 	title: string;
 	prompt: string;
@@ -19,7 +23,8 @@ export interface ProjectorConfig {
 	showNotice: boolean;
 	safe: number;
 	guide: boolean;
-	aspect: '16:9' | '16:10' | '4:3';
+	aspect: 'auto' | '16:9' | '16:10' | '4:3';
+	ntpServer: NtpServer;
 	highVisibility: boolean;
 	inverted: boolean;
 	before: Phase;
@@ -42,7 +47,46 @@ export const STORAGE_KEY = 'examDisplay.v2';
 
 const LEGACY_SETTINGS_KEY = 'examSettings';
 const LEGACY_NOTICE_KEY = 'examAnnouncements';
-const ASPECTS = ['16:9', '16:10', '4:3'] as const;
+const ASPECTS = ['auto', '16:9', '16:10', '4:3'] as const;
+
+export const ASPECT_OPTIONS = [
+	{ id: 'auto', label: 'Auto' },
+	{ id: '16:9', label: '16:9' },
+	{ id: '16:10', label: '16:10' },
+	{ id: '4:3', label: '4:3' }
+] as const;
+
+export const NTP_SERVER_OPTIONS: readonly {
+	id: NtpServer;
+	label: string;
+	description: string;
+	isWarning?: boolean;
+}[] = [
+	{
+		id: 'ntp.ui.ac.id',
+		label: 'ntp.ui.ac.id · UI Campus (Default)',
+		description:
+			'Maintains internal time consistency across UI campus servers and machines, but lags ~5 seconds behind global real clocks. Avoid mixing with external clocks not synced to ntp.ui.ac.id.',
+		isWarning: true
+	},
+	{
+		id: 'ntp.bmkg.go.id',
+		label: 'ntp.bmkg.go.id · BMKG Indonesia (Stratum 1)',
+		description:
+			'Indonesian national time standard (Stratum 1). Accurate to global real time; ensure all displays in the room use the same source.'
+	},
+	{
+		id: 'time.cloudflare.com',
+		label: 'time.cloudflare.com · Cloudflare (Stratum 1)',
+		description:
+			'Global anycast Stratum 1 reference with local Jakarta edge nodes. Accurate to global real time.'
+	},
+	{
+		id: 'time.google.com',
+		label: 'time.google.com · Google Public NTP (Stratum 1)',
+		description: 'Global Stratum 1 atomic clock fleet. Accurate to global real time.'
+	}
+];
 const HEX_COLOR = /^#[\da-f]{6}$/i;
 /** Built-in milestones whose times are locked to the exam schedule. */
 const BUILTIN_IDS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'];
@@ -106,7 +150,8 @@ export function defaultConfig(): ProjectorConfig {
 		showNotice: true,
 		safe: 12,
 		guide: false,
-		aspect: '16:9',
+		aspect: 'auto',
+		ntpServer: 'ntp.ui.ac.id',
 		highVisibility: false,
 		inverted: false,
 		before: { title: 'Not started', prompt: 'Starts at {start}', color: '#15171b' },
@@ -190,6 +235,9 @@ function normalizeConfig(value: unknown): ProjectorConfig {
 	const aspect = ASPECTS.includes(value.aspect as (typeof ASPECTS)[number])
 		? (value.aspect as ProjectorConfig['aspect'])
 		: fallback.aspect;
+	const ntpServer = NTP_SERVERS.includes(value.ntpServer as NtpServer)
+		? (value.ntpServer as NtpServer)
+		: fallback.ntpServer;
 	return respaceMilestones({
 		title: typeof value.title === 'string' ? value.title : fallback.title,
 		start: optionalTime(value.start, fallback.start),
@@ -202,6 +250,7 @@ function normalizeConfig(value: unknown): ProjectorConfig {
 				: fallback.safe,
 		guide: typeof value.guide === 'boolean' ? value.guide : fallback.guide,
 		aspect,
+		ntpServer,
 		highVisibility: value.highVisibility === true,
 		inverted: value.inverted === true,
 		before: normalizePhase(value.before, fallback.before),
@@ -490,12 +539,20 @@ export function respaceMilestones(cfg: ProjectorConfig): ProjectorConfig {
 }
 
 /** Share the text budget across lines, preserving breaks without charging for them. */
-export function visibilityNotice(cfg: ProjectorConfig): { text: string; shortened: boolean } {
+export function visibilityNotice(
+	cfg: ProjectorConfig,
+	effectiveCanvasWidth?: number
+): { text: string; shortened: boolean } {
 	const lines = cfg.notice
 		.split('\n')
 		.map((line) => line.trim())
 		.filter(Boolean);
-	const narrow = cfg.aspect === '4:3';
+	const narrow =
+		cfg.aspect === '4:3' ||
+		(cfg.aspect === 'auto' &&
+			typeof effectiveCanvasWidth === 'number' &&
+			Number.isFinite(effectiveCanvasWidth) &&
+			effectiveCanvasWidth <= 1560);
 	const blocked = cfg.safe >= 20;
 	const limit = narrow && blocked ? 48 : narrow || blocked ? 80 : 120;
 	const text = lines.join('\n');

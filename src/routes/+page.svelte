@@ -33,6 +33,7 @@
 	let hideTimer: ReturnType<typeof setTimeout>;
 	let stopped = false;
 	let syncing = false;
+	let timeController: AbortController | null = null;
 	const pendingRequests = new Set<AbortController>();
 
 	$: clockError = rehearsal.enabled && rehearsal.fail;
@@ -60,15 +61,23 @@
 		}
 	}
 
-	async function syncTime() {
-		if (syncing || stopped) return;
+	async function syncTime(force = false) {
+		if (stopped) return;
+		if (syncing) {
+			if (!force) return;
+			timeController?.abort();
+		}
 		syncing = true;
 		clearTimeout(syncTimer);
+		const requestedServer = cfg.ntpServer;
 		const controller = new AbortController();
+		timeController = controller;
 		pendingRequests.add(controller);
 		const timeout = setTimeout(() => controller.abort(), 10000);
 		try {
-			const response = await fetch('/api/time', { signal: controller.signal });
+			const response = await fetch(`/api/time?server=${encodeURIComponent(requestedServer)}`, {
+				signal: controller.signal
+			});
 			const data: TimeResponse = await response.json();
 			const timestamp = Date.parse(data.time || '');
 			if (
@@ -78,21 +87,21 @@
 			) {
 				throw new Error(data.ntp?.errorDetails || data.ntp?.error || 'NTP time unavailable');
 			}
-			if (stopped) return;
+			if (stopped || controller.signal.aborted) return;
 			// Validate the server timezone before accepting this sample.
 			new Intl.DateTimeFormat('en-GB', { timeZone: data.timezone }).format(timestamp);
 			timezone = data.timezone;
 			liveTimestamp = timestamp;
 			liveAnchor = performance.now();
 			timeSource = data.timeSource as TimeSource;
-			ntpInfo = data.ntp || { server: 'ntp.ui.ac.id' };
+			ntpInfo = data.ntp || { server: requestedServer };
 			tick();
 		} catch (error) {
-			if (stopped) return;
+			if (stopped || controller.signal.aborted) return;
 			liveTimestamp = null;
 			timeSource = 'error';
 			ntpInfo = {
-				server: 'ntp.ui.ac.id',
+				server: requestedServer,
 				error: 'time_unavailable',
 				errorDetails: error instanceof Error ? error.message : 'NTP unavailable'
 			};
@@ -100,8 +109,11 @@
 		} finally {
 			clearTimeout(timeout);
 			pendingRequests.delete(controller);
-			syncing = false;
-			if (!stopped) syncTimer = setTimeout(syncTime, timeSource === 'error' ? 30000 : 300000);
+			if (timeController === controller) {
+				timeController = null;
+				syncing = false;
+				if (!stopped) syncTimer = setTimeout(syncTime, timeSource === 'error' ? 30000 : 300000);
+			}
 		}
 	}
 
@@ -132,9 +144,11 @@
 	}
 
 	function updateConfig(value: ProjectorConfig) {
+		const serverChanged = value.ntpServer !== cfg.ntpServer;
 		cfg = value;
 		persist();
 		tick();
+		if (serverChanged) void syncTime(true);
 	}
 	function updateRehearsal(value: Rehearsal) {
 		rehearsal = value;
@@ -151,11 +165,13 @@
 		controlsChannel?.postMessage({ type: 'notice-overflow', value });
 	}
 	function reset() {
+		const previousServer = cfg.ntpServer;
 		setCalibration(false);
 		cfg = defaultConfig();
 		rehearsal = { enabled: false, base: toSeconds(cfg.start), at: Date.now(), fail: false };
 		persist();
 		tick();
+		if (cfg.ntpServer !== previousServer) void syncTime(true);
 	}
 	function revealControls() {
 		chrome = true;
@@ -176,7 +192,7 @@
 		}
 	}
 	function syncNow() {
-		void syncTime();
+		void syncTime(true);
 		void checkHealth();
 	}
 	function fullscreen() {
@@ -219,8 +235,10 @@
 		const healthTicker = setInterval(checkHealth, 600000);
 		const onStorage = (event: StorageEvent) => {
 			if (event.key !== STORAGE_KEY && event.key !== null) return;
+			const previousServer = cfg.ntpServer;
 			({ cfg, rehearsal } = loadState(localStorage));
 			tick();
+			if (cfg.ntpServer !== previousServer) void syncTime(true);
 		};
 		const onHash = () => {
 			consoleOnly = location.hash === '#console';

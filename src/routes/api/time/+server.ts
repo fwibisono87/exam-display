@@ -2,10 +2,20 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { time as getSntpTime } from '@hapi/sntp';
-import type { NtpInfo, TimeResponse, TimeSource } from '$lib/types';
+import {
+	NTP_SERVERS,
+	type NtpInfo,
+	type NtpServer,
+	type TimeResponse,
+	type TimeSource
+} from '$lib/types';
 
-const ENFORCED_NTP_SERVER = 'ntp.ui.ac.id';
+const DEFAULT_NTP_SERVER: NtpServer = 'ntp.ui.ac.id';
 const NTP_TIMEOUT_MS = 5000;
+
+function isAllowedNtpServer(value: string): value is NtpServer {
+	return (NTP_SERVERS as readonly string[]).includes(value);
+}
 
 interface NTPResult {
 	time: Date;
@@ -57,9 +67,35 @@ async function getNTPTime(server: string): Promise<NTPResult | NTPError> {
 	}
 }
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ url }) => {
 	const configuredTimezone = env.TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone;
-	const ntpServer = ENFORCED_NTP_SERVER;
+	const requestedServer = url.searchParams.get('server')?.trim();
+
+	if (requestedServer && !isAllowedNtpServer(requestedServer)) {
+		const response: TimeResponse = {
+			timezone: configuredTimezone,
+			timeSource: 'error',
+			ntp: {
+				server: requestedServer,
+				error: 'invalid_ntp_server',
+				errorDetails: `NTP server must be one of: ${NTP_SERVERS.join(', ')}`
+			},
+			status: 'unhealthy',
+			debug: {
+				ntpServerConfigured: false,
+				ntpServerValue: requestedServer,
+				serverTimeSource: 'unavailable'
+			}
+		};
+		return json(response, { status: 400 });
+	}
+
+	const ntpServer: NtpServer =
+		requestedServer && isAllowedNtpServer(requestedServer)
+			? requestedServer
+			: env.NTP_SERVER && isAllowedNtpServer(env.NTP_SERVER)
+				? env.NTP_SERVER
+				: DEFAULT_NTP_SERVER;
 
 	let serverTime: Date | null = null;
 	let timeSource: TimeSource = 'error';

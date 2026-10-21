@@ -16,20 +16,22 @@ const viewports = [
 ];
 
 async function mockTime(page: import('@playwright/test').Page, failed = false) {
-	await page.route('**/api/time', (route) =>
-		route.fulfill({
+	await page.route('**/api/time*', (route) => {
+		const requestUrl = new URL(route.request().url());
+		const server = requestUrl.searchParams.get('server') || 'ntp.ui.ac.id';
+		return route.fulfill({
 			status: failed ? 503 : 200,
 			json: failed
-				? { timeSource: 'error', timezone: 'Asia/Jakarta', ntp: { error: 'timeout' } }
+				? { timeSource: 'error', timezone: 'Asia/Jakarta', ntp: { server, error: 'timeout' } }
 				: {
 						time: '2026-10-12T03:12:04.000Z',
 						timezone: 'Asia/Jakarta',
 						timeSource: 'ntp',
-						ntp: { server: 'ntp.ui.ac.id', offset: 2, delay: 45, hasValidMetrics: true },
+						ntp: { server, offset: 2, delay: 45, hasValidMetrics: true },
 						status: 'healthy'
 					}
-		})
-	);
+		});
+	});
 	await page.route('**/api/health', (route) => route.fulfill({ json: { status: 'healthy' } }));
 }
 
@@ -37,7 +39,7 @@ test.beforeEach(async ({ page }) => {
 	await mockTime(page);
 });
 
-for (const aspect of ['16:9', '16:10', '4:3']) {
+for (const aspect of ['Auto', '16:9', '16:10', '4:3']) {
 	for (const viewport of viewports) {
 		test(`${aspect} projector fits at ${viewport.width}x${viewport.height}`, async ({ page }) => {
 			await page.setViewportSize(viewport);
@@ -206,7 +208,7 @@ test('console edits, rehearsal, milestones and keyboard tabs work', async ({ pag
 });
 
 test('pop-out console synchronizes both directions', async ({ page, context }) => {
-	await context.route('**/api/time', (route) =>
+	await context.route('**/api/time*', (route) =>
 		route.fulfill({
 			json: { time: '2026-10-12T03:12:04.000Z', timezone: 'Asia/Jakarta', timeSource: 'ntp' }
 		})
@@ -246,4 +248,40 @@ test('small console scrolls and reset requires confirmation', async ({ page }) =
 	await expect(panel.getByLabel('Title', { exact: true })).toHaveValue(
 		'Computer Networks · Final Exam'
 	);
+});
+
+test('operator can switch NTP servers, see the contextual disclaimer, and update the display header', async ({
+	page
+}) => {
+	const requestedServers: string[] = [];
+	await page.route('**/api/time*', (route) => {
+		const requestUrl = new URL(route.request().url());
+		const server = requestUrl.searchParams.get('server') || 'ntp.ui.ac.id';
+		requestedServers.push(server);
+		return route.fulfill({
+			status: 200,
+			json: {
+				time: '2026-10-12T03:12:04.000Z',
+				timezone: 'Asia/Jakarta',
+				timeSource: 'ntp',
+				ntp: { server, offset: 1, delay: 12, hasValidMetrics: true },
+				status: 'healthy'
+			}
+		});
+	});
+
+	await page.goto('/');
+	await expect(page.getByTestId('ntp-status')).toContainText('NTP · ntp.ui.ac.id');
+	await page.keyboard.press('c');
+	const panel = page.getByTestId('operator-console');
+	await expect(panel.getByTestId('ntp-disclaimer')).toContainText(
+		'lags ~5 seconds behind global real clocks'
+	);
+
+	await panel.getByTestId('ntp-server-select').selectOption('time.cloudflare.com');
+	await expect(panel.getByTestId('ntp-disclaimer')).toContainText(
+		'Global anycast Stratum 1 reference'
+	);
+	await expect(page.getByTestId('ntp-status')).toContainText('NTP · time.cloudflare.com');
+	expect(requestedServers).toContain('time.cloudflare.com');
 });

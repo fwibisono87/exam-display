@@ -1,5 +1,7 @@
 <script lang="ts">
 	import {
+		ASPECT_OPTIONS,
+		NTP_SERVER_OPTIONS,
 		examWindow,
 		extendExam,
 		fillText,
@@ -11,7 +13,13 @@
 		toSeconds,
 		visibilityNotice
 	} from '$lib/projector-model';
-	import type { Milestone, Phase, ProjectorConfig, Rehearsal } from '$lib/projector-model';
+	import type {
+		Milestone,
+		NtpServer,
+		Phase,
+		ProjectorConfig,
+		Rehearsal
+	} from '$lib/projector-model';
 	import type { NtpInfo } from '$lib/types';
 
 	export let cfg: ProjectorConfig;
@@ -80,6 +88,8 @@
 			: timeSource === 'ntp_partial'
 				? 'Partial NTP'
 				: 'NTP';
+	$: selectedNtpOption =
+		NTP_SERVER_OPTIONS.find((option) => option.id === cfg.ntpServer) ?? NTP_SERVER_OPTIONS[0];
 
 	function patchConfig(patch: Partial<ProjectorConfig>) {
 		onConfig({ ...cfg, ...patch });
@@ -321,8 +331,28 @@
 						/></label
 					>
 				{/if}
+				<label class="field">
+					<span class="eyebrow">NTP server</span>
+					<select
+						data-testid="ntp-server-select"
+						value={cfg.ntpServer}
+						on:change={(event) =>
+							patchConfig({ ntpServer: event.currentTarget.value as NtpServer })}
+					>
+						{#each NTP_SERVER_OPTIONS as option (option.id)}
+							<option value={option.id}>{option.label}</option>
+						{/each}
+					</select>
+				</label>
+				<p
+					class="ntp-note"
+					class:warning={selectedNtpOption.isWarning}
+					data-testid="ntp-disclaimer"
+				>
+					{selectedNtpOption.description}
+				</p>
 				<div class="metrics-line">
-					<strong>{ntpInfo.server || 'NTP server unavailable'}</strong>
+					<strong>{ntpInfo.server || cfg.ntpServer || 'NTP server unavailable'}</strong>
 					<span
 						>{ntpInfo.hasValidMetrics && ntpInfo.offset != null
 							? `offset ${ntpInfo.offset} ms`
@@ -563,14 +593,15 @@
 			<div class="field-stack">
 				<span class="eyebrow">Projector shape</span>
 				<div class="segmented aspects" aria-label="Projector shape">
-					{#each ['16:9', '16:10', '4:3'] as aspect (aspect)}<button
+					{#each ASPECT_OPTIONS as option (option.id)}<button
 							type="button"
-							class:chosen={cfg.aspect === aspect}
-							aria-pressed={cfg.aspect === aspect}
-							on:click={() => patchConfig({ aspect: aspect as ProjectorConfig['aspect'] })}
-							>{aspect}</button
+							class:chosen={cfg.aspect === option.id}
+							aria-pressed={cfg.aspect === option.id}
+							on:click={() => patchConfig({ aspect: option.id })}>{option.label}</button
 						>{/each}
 				</div>
+				<span class="hint">Auto adapts dynamically to the screen or window without black bars.</span
+				>
 			</div>
 			<label class="field"
 				><span class="range-heading"
@@ -686,6 +717,7 @@
 	}
 	button:focus-visible,
 	input:focus-visible,
+	select:focus-visible,
 	textarea:focus-visible,
 	.console-body:focus-visible {
 		outline: 3px solid #1f5fbf;
@@ -731,6 +763,7 @@
 		text-transform: uppercase;
 	}
 	.field input:not([type='checkbox']):not([type='color']):not([type='range']),
+	.field select,
 	textarea {
 		width: 100%;
 		min-width: 0;
@@ -903,6 +936,20 @@
 		font-size: 13px;
 		font-weight: 600;
 		line-height: 1.4;
+	}
+	.ntp-note {
+		margin: 0;
+		padding: 10px 12px;
+		border-left: 3px solid #1f5fbf;
+		background: #f0f4fa;
+		color: #1d2b3a;
+		font-size: 12px;
+		line-height: 1.45;
+	}
+	.ntp-note.warning {
+		border-left-color: #b5640d;
+		background: #fff6d6;
+		color: #3a2200;
 	}
 	.status-grid {
 		display: grid;
@@ -1080,7 +1127,7 @@
 		font-weight: 500;
 	}
 	.segmented.aspects {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 	}
 	.segmented.aspects button {
 		font-family: 'IBM Plex Mono', monospace;

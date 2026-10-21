@@ -265,3 +265,45 @@ test('two 60-character lines have the same high visibility budget as one 120-cha
 	expect(over.text).toContain('\n');
 	expect(over.text.replace(/\n/g, '').length).toBeLessThanOrEqual(120);
 });
+
+test('defaults to auto aspect ratio and ntp.ui.ac.id, and normalizes aspect and ntpServer', () => {
+	const defaults = defaultConfig();
+	expect(defaults.aspect).toBe('auto');
+	expect(defaults.ntpServer).toBe('ntp.ui.ac.id');
+
+	const validCustom = loadState(
+		memoryStorage({
+			'examDisplay.v2': JSON.stringify({
+				cfg: { aspect: '16:10', ntpServer: 'time.cloudflare.com' }
+			})
+		})
+	);
+	expect(validCustom.cfg.aspect).toBe('16:10');
+	expect(validCustom.cfg.ntpServer).toBe('time.cloudflare.com');
+
+	const invalidCustom = loadState(
+		memoryStorage({
+			'examDisplay.v2': JSON.stringify({
+				cfg: { aspect: '21:9', ntpServer: 'evil.example.com' }
+			})
+		})
+	);
+	expect(invalidCustom.cfg.aspect).toBe('auto');
+	expect(invalidCustom.cfg.ntpServer).toBe('ntp.ui.ac.id');
+});
+
+test('visibilityNotice applies narrow budget in auto aspect mode when effectiveCanvasWidth is narrow', () => {
+	const cfg = {
+		...defaultConfig(),
+		aspect: 'auto' as const,
+		safe: 30,
+		notice: 'Read carefully. '.repeat(30)
+	};
+	const narrowPreview = visibilityNotice(cfg, 1440);
+	expect(narrowPreview.text.length).toBeLessThanOrEqual(48);
+	expect(narrowPreview.shortened).toBe(true);
+
+	const widePreview = visibilityNotice(cfg, 1920);
+	expect(widePreview.text.length).toBeGreaterThan(48);
+	expect(widePreview.text.length).toBeLessThanOrEqual(80);
+});
