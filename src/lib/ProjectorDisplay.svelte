@@ -63,6 +63,8 @@
 	$: highVisibility = cfg.highVisibility;
 	$: inverted = cfg.inverted;
 	$: columnScale = railWidth / 620;
+	$: railEmpty = (error || !phaseState.scheduled) && !hasNotice;
+	$: layoutRailWidth = railEmpty ? 0 : railWidth;
 	$: phaseFlex = hasNotice ? '0 1 auto' : '1 1 auto';
 	$: phaseLimit = hasNotice
 		? `${Math.max(30, (highVisibility ? 35 : 55) - cfg.safe * 0.5)}%`
@@ -144,7 +146,7 @@
 			: Math.round((score < 90 ? 58 : score < 180 ? 46 : score < 300 ? 36 : 30) * nk);
 		let nextClockPx = Math.max(
 			72,
-			Math.min(380, (canvasWidth - railWidth - 128) / 3.55, (1080 - safePx - 520) * 1.1)
+			Math.min(380, (canvasWidth - layoutRailWidth - 128) / 3.55, (1080 - safePx - 520) * 1.1)
 		);
 		let nextRemainingPx = highVisibility ? 112 : 88;
 
@@ -295,7 +297,7 @@
 		class:high-visibility={highVisibility || calibration}
 		class:inverted
 		data-testid="projector-display"
-		style={`--canvas-width:${canvasWidth}px;--canvas-scale:${scale};--canvas-center:${controlsOpen && viewportWidth > 1100 ? 'calc(50% - 230px)' : '50%'};--rail-width:${railWidth}px;--safe-px:${safePx}px;--hv-bg:${inverted ? '#000' : '#fff'};--hv-fg:${inverted ? '#fff' : '#000'};`}
+		style={`--canvas-width:${canvasWidth}px;--canvas-scale:${scale};--canvas-center:${controlsOpen && viewportWidth > 1100 ? 'calc(50% - 230px)' : '50%'};--rail-width:${layoutRailWidth}px;--safe-px:${safePx}px;--hv-bg:${inverted ? '#000' : '#fff'};--hv-fg:${inverted ? '#fff' : '#000'};`}
 	>
 		{#if calibration}
 			<section
@@ -320,8 +322,15 @@
 					<span></span><span></span><span></span><span></span>
 				</div>
 				<div class="calibration-directions">
-					Check every digit from the back row with exam lighting. <br>
-Kami TIDAK bertanggung-jawab atas KEAKURATAN mau pun KERUGIAN yang mungkin terjadi akibat memanfaatkan situs ini. HARAP MENANGGUNG SENDIRI SEGALA RISIKO! Jangan lupa mengungkapkan/ menuliskan penghargaan (acknowledgement) jika anda menggunakan bahan karya dari pihak lain. Situs ini berbasis “Google Sana, Google Sini, Coba Itu, Coba Ini, Lalu Tanya-tanyi” (GSGSCICILTT). Entah ini PLAGIAT, entah ini RISET, yang jelas tidak pernah ada klaim bahwa ini merupakan karya asli, serta belum tentu pula merupakan solusi terbaik, serta bukan untuk konsumsi Scopus :). Mohon kiranya memberikan tanggapan, terutama jika memiliki solusi alternatif. Semoga catatan ini akan bermanfaat di masa mendatang, saat sudah lupa cara menyelesaikan masalah trivia ini.
+					Check every digit from the back row with exam lighting. <br />
+					Kami TIDAK bertanggung-jawab atas KEAKURATAN mau pun KERUGIAN yang mungkin terjadi akibat memanfaatkan
+					situs ini. HARAP MENANGGUNG SENDIRI SEGALA RISIKO! Jangan lupa mengungkapkan/ menuliskan penghargaan
+					(acknowledgement) jika anda menggunakan bahan karya dari pihak lain. Situs ini berbasis “Google
+					Sana, Google Sini, Coba Itu, Coba Ini, Lalu Tanya-tanyi” (GSGSCICILTT). Entah ini PLAGIAT,
+					entah ini RISET, yang jelas tidak pernah ada klaim bahwa ini merupakan karya asli, serta belum
+					tentu pula merupakan solusi terbaik, serta bukan untuk konsumsi Scopus :). Mohon kiranya memberikan
+					tanggapan, terutama jika memiliki solusi alternatif. Semoga catatan ini akan bermanfaat di
+					masa mendatang, saat sudah lupa cara menyelesaikan masalah trivia ini.
 				</div>
 				<div class="calibration-exit">Exit with the Screen controls.</div>
 				{#if safePx > 0}
@@ -393,97 +402,100 @@ Kami TIDAK bertanggung-jawab atas KEAKURATAN mau pun KERUGIAN yang mungkin terja
 										>:{secondsLabel}</span
 									>
 								</div>
-								<div class="remaining-line" bind:this={remainingElement}>
-									{#if phaseState.beforeStart}<span class="remaining-word">starts in</span>{/if}
-									<span
-										class="remaining-time"
-										style:color={phase.color}
-										style:font-size={`${remainingPx}px`}>{remaining}</span
-									>
-									{#if !phaseState.beforeStart}<span class="remaining-word">remaining</span>{/if}
-								</div>
+								{#if phaseState.scheduled}
+									<div class="remaining-line" bind:this={remainingElement}>
+										{#if phaseState.beforeStart}<span class="remaining-word">starts in</span>{/if}
+										<span
+											class="remaining-time"
+											style:color={phase.color}
+											style:font-size={`${remainingPx}px`}>{remaining}</span
+										>
+										{#if !phaseState.beforeStart}<span class="remaining-word">remaining</span>{/if}
+									</div>
+								{/if}
 							</div>
-							<div
-								class:visibility-timeline={highVisibility}
-								class="timeline"
-								aria-label="Exam milestones"
-							>
-								<div class="track"></div>
-								<div
-									data-testid="exam-progress-track"
-									class="track-progress"
-									style={`width:${progress}%`}
-								></div>
-								{#if !highVisibility}{#each ticks as tick (tick.id)}
-										<div class="milestone" style={`left:${tick.position}%`}>
-											<span class:muted={!tick.showTime} class="milestone-time">{tick.time}</span>
-											<span class="milestone-tick" style:background={tick.color}></span>
-											<span class:muted={!tick.showLabel} class="milestone-label">{tick.label}</span
-											>
-										</div>
-									{/each}{/if}
-								{#if !highVisibility}<div
-										class="current-marker"
-										style={`left:${progress}%`}
-										style:background={phase.color}
-									></div>{/if}
-							</div>
+							{#if phaseState.scheduled}<div
+									class:visibility-timeline={highVisibility}
+									class="timeline"
+									aria-label="Exam milestones"
+								>
+									<div class="track"></div>
+									<div
+										data-testid="exam-progress-track"
+										class="track-progress"
+										style={`width:${progress}%`}
+									></div>
+									{#if !highVisibility}{#each ticks as tick (tick.id)}
+											<div class="milestone" style={`left:${tick.position}%`}>
+												<span class:muted={!tick.showTime} class="milestone-time">{tick.time}</span>
+												<span class="milestone-tick" style:background={tick.color}></span>
+												<span class:muted={!tick.showLabel} class="milestone-label"
+													>{tick.label}</span
+												>
+											</div>
+										{/each}{/if}
+									{#if !highVisibility}<div
+											class="current-marker"
+											style={`left:${progress}%`}
+											style:background={phase.color}
+										></div>{/if}
+								</div>{/if}
 						</section>
 					{/if}
 				</div>
 
-				<aside class="right-rail">
-					{#if !error}
-						<section
-							class="phase-panel"
-							bind:this={phaseElement}
-							style={`--phase-color:${phase.color};--phase-flex:${phaseFlex};--phase-limit:${phaseLimit};--phase-title-size:${phaseTitlePx}px;--prompt-size:${promptPx}px;`}
-						>
-							<div class="phase-label">{phaseState.beforeStart ? 'Before start' : 'Now'}</div>
-							<div class="phase-copy" bind:this={phaseTextElement} data-testid="current-phase">
-								{phaseTitle}
-							</div>
-							{#if phasePrompt && !highVisibility}
-								<div class="phase-prompt" bind:this={promptElement} data-testid="phase-prompt">
-									{phasePrompt}
+				{#if !railEmpty}<aside class="right-rail">
+						{#if !error && phaseState.scheduled}
+							<section
+								class="phase-panel"
+								bind:this={phaseElement}
+								style={`--phase-color:${phase.color};--phase-flex:${phaseFlex};--phase-limit:${phaseLimit};--phase-title-size:${phaseTitlePx}px;--prompt-size:${promptPx}px;`}
+							>
+								<div class="phase-label">{phaseState.beforeStart ? 'Before start' : 'Now'}</div>
+								<div class="phase-copy" bind:this={phaseTextElement} data-testid="current-phase">
+									{phaseTitle}
 								</div>
-							{/if}
-						</section>
-					{/if}
-					{#if hasNotice && highVisibility}
-						<section class="notice-panel visibility-notice-panel" bind:this={noticeElement}>
-							<div class="notice-heading">Notice</div>
-							<div
-								class:notice-overflow={noticeOverflow}
-								class="notice-copy visibility-notice-copy"
-								bind:this={visibilityNoticeElement}
-								data-testid="notice-copy"
-								style:font-size={`${noticePx}px`}
-								style={`--notice-lines:${noticeClampLines}`}
-							>
-								{visibilityNoticeText}
-							</div>
-						</section>
-					{:else if hasNotice}
-						<section class="notice-panel" bind:this={noticeElement}>
-							<div class="notice-heading">Notice</div>
-							<div
-								class="notice-copy"
-								bind:this={noticeCopyElement}
-								data-testid="notice-copy"
-								style:font-size={`${noticePx}px`}
-							>
-								{#each noticeLines as line, i (i)}
-									<div class="notice-line">
-										{#if line.bullet}<span class="bullet">•</span>{/if}<span class="notice-text"
-											>{line.text}</span
-										>
+								{#if phasePrompt && !highVisibility}
+									<div class="phase-prompt" bind:this={promptElement} data-testid="phase-prompt">
+										{phasePrompt}
 									</div>
-								{/each}
-							</div>
-						</section>
-					{/if}
-				</aside>
+								{/if}
+							</section>
+						{/if}
+						{#if hasNotice && highVisibility}
+							<section class="notice-panel visibility-notice-panel" bind:this={noticeElement}>
+								<div class="notice-heading">Notice</div>
+								<div
+									class:notice-overflow={noticeOverflow}
+									class="notice-copy visibility-notice-copy"
+									bind:this={visibilityNoticeElement}
+									data-testid="notice-copy"
+									style:font-size={`${noticePx}px`}
+									style={`--notice-lines:${noticeClampLines}`}
+								>
+									{visibilityNoticeText}
+								</div>
+							</section>
+						{:else if hasNotice}
+							<section class="notice-panel" bind:this={noticeElement}>
+								<div class="notice-heading">Notice</div>
+								<div
+									class="notice-copy"
+									bind:this={noticeCopyElement}
+									data-testid="notice-copy"
+									style:font-size={`${noticePx}px`}
+								>
+									{#each noticeLines as line, i (i)}
+										<div class="notice-line">
+											{#if line.bullet}<span class="bullet">•</span>{/if}<span class="notice-text"
+												>{line.text}</span
+											>
+										</div>
+									{/each}
+								</div>
+							</section>
+						{/if}
+					</aside>{/if}
 			</div>
 
 			{#if cfg.guide && safePx > 0}

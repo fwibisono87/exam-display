@@ -4,6 +4,8 @@
 		extendExam,
 		fillText,
 		formatHM,
+		hasSchedule,
+		isBuiltinMilestone,
 		resolvePhase,
 		respaceMilestones,
 		toSeconds,
@@ -61,6 +63,7 @@
 	$: shownNow = now;
 	$: resolved = resolvePhase(cfg, shownNow);
 	$: exam = examWindow(cfg, shownNow);
+	$: scheduled = hasSchedule(cfg);
 	$: sortedMilestones = [...cfg.milestones].sort((a, b) => {
 		const timeA =
 			toSeconds(a.time) + (exam.end > 86400 && toSeconds(a.time) < exam.start ? 86400 : 0);
@@ -80,6 +83,10 @@
 
 	function patchConfig(patch: Partial<ProjectorConfig>) {
 		onConfig({ ...cfg, ...patch });
+	}
+
+	function patchSchedule(patch: Pick<Partial<ProjectorConfig>, 'start' | 'end'>) {
+		onConfig(respaceMilestones({ ...cfg, ...patch }));
 	}
 
 	function patchPhase(id: string, patch: Partial<Phase>) {
@@ -143,7 +150,9 @@
 
 	function addMilestone() {
 		const id = `milestone-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`;
-		const time = Math.min(resolved.end - 60, Math.max(resolved.now + 300, resolved.start));
+		const time = scheduled
+			? Math.min(resolved.end - 60, Math.max(resolved.now + 300, resolved.start))
+			: resolved.now + 300;
 		const milestone: Milestone = {
 			id,
 			time: formatHM(time),
@@ -237,30 +246,36 @@
 						<span class="eyebrow">Start</span>
 						<input
 							type="time"
-							value={cfg.start}
-							on:change={(event) => patchConfig({ start: event.currentTarget.value })}
+							value={cfg.start ?? ''}
+							on:change={(event) => patchSchedule({ start: event.currentTarget.value || null })}
 						/>
 					</label>
 					<label class="field">
 						<span class="eyebrow">End</span>
 						<input
 							type="time"
-							value={cfg.end}
-							on:change={(event) => patchConfig({ end: event.currentTarget.value })}
+							value={cfg.end ?? ''}
+							on:change={(event) => patchSchedule({ end: event.currentTarget.value || null })}
 						/>
 					</label>
 				</div>
-				<div class="three-columns">
-					<button class="outline-button" type="button" on:click={() => extend(5)}>+5 min</button>
-					<button class="outline-button" type="button" on:click={() => extend(10)}>+10 min</button>
+				<div class="two-columns">
 					<button
 						class="outline-button"
 						type="button"
-						on:click={() => onConfig(respaceMilestones(cfg))}>Re-space milestones</button
+						disabled={!scheduled}
+						on:click={() => extend(5)}>+5 min</button
+					>
+					<button
+						class="outline-button"
+						type="button"
+						disabled={!scheduled}
+						on:click={() => extend(10)}>+10 min</button
 					>
 				</div>
 				<p class="hint compact-hint">
-					Extending moves the end time and every milestone after now by the same amount.
+					Leave start or end empty to show only the clock. Built-in milestones follow the exam times
+					automatically; extending also moves custom milestones after now.
 				</p>
 			</section>
 
@@ -290,8 +305,8 @@
 						data-testid="rehearsal-slider"
 						class="range"
 						type="range"
-						min={resolved.start - 1800}
-						max={resolved.end + 600}
+						min={scheduled ? resolved.start - 1800 : 0}
+						max={scheduled ? resolved.end + 600 : 86399}
 						step="30"
 						value={shownNow}
 						aria-label="Rehearsal time"
@@ -350,6 +365,8 @@
 			<div class="phase-list">
 				{#each [{ id: 'before', time: '', title: cfg.before.title, prompt: cfg.before.prompt, color: cfg.before.color, enabled: true }, ...sortedMilestones] as item (item.id)}
 					{@const before = item.id === 'before'}
+					{@const locked = isBuiltinMilestone(item.id)}
+					{@const shownTime = locked && !scheduled ? '' : item.time}
 					{@const isOpen = openPhaseId === item.id}
 					{@const currentPhase = before ? resolved.beforeStart : resolved.activeId === item.id}
 					{@const itemTime = before
@@ -366,7 +383,7 @@
 							on:click={() => (openPhaseId = isOpen ? '' : item.id)}
 						>
 							<span class="color-chip" style={`background:${item.color}`}></span>
-							<span class="phase-time">{before ? 'before' : item.time}</span>
+							<span class="phase-time">{before ? 'before' : shownTime || '--:--'}</span>
 							<span class:dim={!before && !item.enabled} class="phase-name">{item.title}</span>
 							<span class="phase-status"
 								>{onScreen
@@ -384,10 +401,13 @@
 								{#if !before}
 									<div class="two-columns align-bottom">
 										<label class="field"
-											><span class="eyebrow">Time</span><input
+											><span class="eyebrow">{locked ? 'Time · automatic' : 'Time'}</span><input
 												type="time"
-												value={item.time}
+												value={shownTime}
+												readonly={locked}
+												aria-label={`Time for ${item.title}`}
 												on:change={(event) =>
+													event.currentTarget.value &&
 													patchMilestone(item.id, { time: event.currentTarget.value })}
 											/></label
 										>
@@ -728,19 +748,19 @@
 			500 19px 'IBM Plex Mono',
 			monospace;
 	}
+	.field input[readonly] {
+		border-style: dashed;
+		background: #f3f2ee;
+		color: #5c5a54;
+	}
 	textarea {
 		resize: vertical;
 		line-height: 1.45;
 	}
-	.two-columns,
-	.three-columns {
+	.two-columns {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 10px;
-	}
-	.three-columns {
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 7px;
 	}
 	.outline-button,
 	.quiet-button,
@@ -757,6 +777,11 @@
 	.outline-button {
 		min-height: 40px;
 		padding: 9px 7px;
+	}
+	.outline-button:disabled {
+		border-color: #d3d1ca;
+		color: #8a877f;
+		cursor: not-allowed;
 	}
 	.quiet-button {
 		padding: 7px 10px;
@@ -1084,12 +1109,6 @@
 		.console-body {
 			padding-right: 12px;
 			padding-left: 12px;
-		}
-		.three-columns {
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-		}
-		.three-columns button:last-child {
-			grid-column: 1 / -1;
 		}
 		.phase-summary {
 			grid-template-columns: 16px 44px minmax(0, 1fr) 12px;

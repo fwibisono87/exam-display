@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 import {
 	defaultConfig,
 	examWindow,
+	extendExam,
+	fillText,
 	loadState,
 	resolvePhase,
 	respaceMilestones,
@@ -119,7 +121,7 @@ test('migrates old exam settings and announcements without enabling rehearsal', 
 	expect(state.cfg.showNotice).toBe(false);
 	expect(state.cfg.safe).toBe(18);
 	expect(state.cfg.milestones.find((item) => item.id === 'm3')).toMatchObject({
-		time: '10:01',
+		time: '10:00',
 		title: 'Saved warning',
 		enabled: false,
 		color: '#123456'
@@ -142,6 +144,46 @@ test('uses legacy schedule times when old settings have no checkpoint times', ()
 	expect(state.cfg.milestones.find((item) => item.id === 'm2')?.time).toBe('09:30');
 	expect(state.cfg.milestones.find((item) => item.id === 'm3')?.time).toBe('10:00');
 	expect(state.cfg.milestones.find((item) => item.id === 'm6')?.time).toBe('10:30');
+});
+
+test('legacy settings without a schedule migrate to clock-only', () => {
+	const state = loadState(
+		memoryStorage({ examSettings: JSON.stringify({ examStartTime: '', customTitle: 'Saved' }) })
+	);
+	expect(state.cfg.start).toBeNull();
+	expect(state.cfg.end).toBeNull();
+	expect(resolvePhase(state.cfg, 10 * 3600).scheduled).toBe(false);
+});
+
+test('an empty schedule shows no phase and persists across loads', () => {
+	const cfg = { ...defaultConfig(), end: null };
+	const resolved = resolvePhase(cfg, 10 * 3600);
+	expect(resolved).toMatchObject({ scheduled: false, activeId: null, progress: 0, remaining: 0 });
+	expect(fillText('Ends at {end}, {left} left', cfg, 10 * 3600)).toBe('Ends at --:--, -- left');
+	expect(extendExam(cfg, 10 * 3600, 5)).toBe(cfg);
+	expect(respaceMilestones(cfg)).toBe(cfg);
+	const state = loadState(
+		memoryStorage({ 'examDisplay.v2': JSON.stringify({ cfg: { ...cfg, start: '' } }) })
+	);
+	expect(state.cfg.start).toBeNull();
+	expect(state.cfg.end).toBeNull();
+});
+
+test('built-in milestone times are locked to the schedule on load and on extend', () => {
+	const defaults = defaultConfig();
+	const cfg = {
+		...defaults,
+		milestones: defaults.milestones.map((milestone) =>
+			milestone.id === 'm2' ? { ...milestone, time: '09:05' } : milestone
+		)
+	};
+	const loaded = loadState(memoryStorage({ 'examDisplay.v2': JSON.stringify({ cfg }) }));
+	expect(loaded.cfg.milestones.find((item) => item.id === 'm2')?.time).toBe('10:00');
+	const extended = extendExam(loaded.cfg, 10.5 * 3600, 10);
+	expect(extended.end).toBe('11:10');
+	expect(extended.milestones.find((item) => item.id === 'm2')?.time).toBe('10:05');
+	expect(extended.milestones.find((item) => item.id === 'm3')?.time).toBe('10:40');
+	expect(extended.milestones.find((item) => item.id === 'm6')?.time).toBe('11:10');
 });
 
 test('copies announcements when that is the only legacy value', () => {

@@ -12,8 +12,9 @@ export interface Milestone extends Phase {
 
 export interface ProjectorConfig {
 	title: string;
-	start: string;
-	end: string;
+	/** Null start or end means no exam schedule: the projector shows only the clock. */
+	start: string | null;
+	end: string | null;
 	notice: string;
 	showNotice: boolean;
 	safe: number;
@@ -43,6 +44,8 @@ const LEGACY_SETTINGS_KEY = 'examSettings';
 const LEGACY_NOTICE_KEY = 'examAnnouncements';
 const ASPECTS = ['16:9', '16:10', '4:3'] as const;
 const HEX_COLOR = /^#[\da-f]{6}$/i;
+/** Built-in milestones whose times are locked to the exam schedule. */
+const BUILTIN_IDS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'];
 const BUILTIN_DEFAULTS: Milestone[] = [
 	{
 		id: 'm1',
@@ -125,6 +128,11 @@ function validTime(value: unknown, fallback: string): string {
 		: fallback;
 }
 
+function optionalTime(value: unknown, fallback: string | null): string | null {
+	if (value === null || value === '') return null;
+	return validTime(value, fallback ?? '') || null;
+}
+
 function validColor(value: unknown, fallback: string): string {
 	return typeof value === 'string' && HEX_COLOR.test(value) ? value : fallback;
 }
@@ -182,10 +190,10 @@ function normalizeConfig(value: unknown): ProjectorConfig {
 	const aspect = ASPECTS.includes(value.aspect as (typeof ASPECTS)[number])
 		? (value.aspect as ProjectorConfig['aspect'])
 		: fallback.aspect;
-	return {
+	return respaceMilestones({
 		title: typeof value.title === 'string' ? value.title : fallback.title,
-		start: validTime(value.start, fallback.start),
-		end: validTime(value.end, fallback.end),
+		start: optionalTime(value.start, fallback.start),
+		end: optionalTime(value.end, fallback.end),
 		notice: typeof value.notice === 'string' ? value.notice : fallback.notice,
 		showNotice: typeof value.showNotice === 'boolean' ? value.showNotice : fallback.showNotice,
 		safe:
@@ -198,7 +206,7 @@ function normalizeConfig(value: unknown): ProjectorConfig {
 		inverted: value.inverted === true,
 		before: normalizePhase(value.before, fallback.before),
 		milestones
-	};
+	});
 }
 
 function normalizeRehearsal(value: unknown): Rehearsal {
@@ -242,17 +250,10 @@ function legacyCheckpoint(settings: Record<string, unknown>, id: string): unknow
 	return checkpoints.find((item) => isRecord(item) && expected.includes(String(item.id)));
 }
 
-function checkpointToMilestone(
-	value: unknown,
-	fallback: Milestone,
-	timeFallback: unknown
-): Milestone {
-	if (!isRecord(value)) {
-		return { ...fallback, time: validTime(timeFallback, fallback.time) };
-	}
+function checkpointToMilestone(value: unknown, fallback: Milestone): Milestone {
+	if (!isRecord(value)) return { ...fallback };
 	return {
 		...fallback,
-		time: validTime(value.time, validTime(timeFallback, fallback.time)),
 		title: typeof value.name === 'string' ? value.name : fallback.title,
 		prompt: fallback.prompt,
 		color: validColor(value.color, fallback.color),
@@ -273,45 +274,23 @@ function migrateLegacy(storage: Storage): ProjectorConfig | null {
 			typeof settings.customTitle === 'string' && settings.customTitle
 				? settings.customTitle
 				: cfg.title;
-		cfg.start = validTime(settings.examStartTime, cfg.start);
-		cfg.end = validTime(settings.examEndTime, cfg.end);
+		cfg.start = optionalTime(settings.examStartTime, null);
+		cfg.end = optionalTime(settings.examEndTime, null);
 		cfg.showNotice = settings.showAnnouncements !== false;
 		cfg.safe =
 			typeof settings.bottomDeadZoneVh === 'number' && Number.isFinite(settings.bottomDeadZoneVh)
 				? Math.max(0, Math.min(30, settings.bottomDeadZoneVh))
 				: cfg.safe;
 
-		const times: Record<string, unknown> = {
-			m1: settings.examStartTime,
-			m2: settings.examMidpointTime,
-			m3: settings.final30Time,
-			m4: settings.final15Time,
-			m5: settings.final5Time,
-			m6: settings.examEndTime
-		};
-		const explicitTimes = cfg.milestones.map((fallback) => {
-			const checkpoint = legacyCheckpoint(settings, fallback.id);
-			const explicit = isRecord(checkpoint) && validTime(checkpoint.time, '') !== '';
-			return Boolean(explicit || validTime(times[fallback.id], '') !== '');
-		});
-		const hasSchedule =
-			typeof settings.examStartTime === 'string' && typeof settings.examEndTime === 'string';
-		const respaced = hasSchedule ? respaceMilestones(cfg) : cfg;
-		cfg.milestones = cfg.milestones.map((fallback, index) => {
-			const checkpoint = legacyCheckpoint(settings, fallback.id);
-			const milestone = checkpointToMilestone(checkpoint, fallback, times[fallback.id]);
-			if (!explicitTimes[index] && hasSchedule) {
-				milestone.time =
-					respaced.milestones.find((item) => item.id === fallback.id)?.time ?? milestone.time;
-			}
-			return milestone;
-		});
+		cfg.milestones = cfg.milestones.map((fallback) =>
+			checkpointToMilestone(legacyCheckpoint(settings, fallback.id), fallback)
+		);
 		const custom = Array.isArray(settings.customCheckpoints) ? settings.customCheckpoints : [];
 		for (const [index, item] of custom.entries()) {
 			if (!isRecord(item)) continue;
 			cfg.milestones.push({
 				id: typeof item.id === 'string' && item.id ? item.id : `legacy-custom-${index + 1}`,
-				time: validTime(item.time, cfg.start),
+				time: validTime(item.time, cfg.start ?? '10:00'),
 				title: typeof item.name === 'string' ? item.name : 'Custom milestone',
 				prompt: '',
 				color: validColor(item.color, '#6b3fb0'),
@@ -319,7 +298,7 @@ function migrateLegacy(storage: Storage): ProjectorConfig | null {
 			});
 		}
 	}
-	return cfg;
+	return respaceMilestones(cfg);
 }
 
 export function loadState(storage: Storage): ProjectorState {
@@ -336,7 +315,15 @@ export function loadState(storage: Storage): ProjectorState {
 	};
 }
 
-export function toSeconds(time: string): number {
+export function hasSchedule(cfg: ProjectorConfig): boolean {
+	return cfg.start !== null && cfg.end !== null;
+}
+
+export function isBuiltinMilestone(id: string): boolean {
+	return BUILTIN_IDS.includes(id);
+}
+
+export function toSeconds(time: string | null): number {
 	const normalized = validTime(time, '00:00');
 	const [hours, minutes] = normalized.split(':').map(Number);
 	return hours * 3600 + minutes * 60;
@@ -387,6 +374,7 @@ export function resolvePhase(
 ): {
 	phase: Phase;
 	activeId: string | null;
+	scheduled: boolean;
 	beforeStart: boolean;
 	progress: number;
 	remaining: number;
@@ -395,6 +383,19 @@ export function resolvePhase(
 	now: number;
 } {
 	const window = examWindow(cfg, now);
+	if (!hasSchedule(cfg)) {
+		return {
+			phase: cfg.before,
+			activeId: null,
+			scheduled: false,
+			beforeStart: false,
+			progress: 0,
+			remaining: 0,
+			start: window.start,
+			end: window.end,
+			now
+		};
+	}
 	const duration = Math.max(60, window.end - window.start);
 	const enabled = cfg.milestones
 		.filter((milestone) => milestone.enabled)
@@ -413,6 +414,7 @@ export function resolvePhase(
 	return {
 		phase,
 		activeId: active?.id ?? null,
+		scheduled: true,
 		beforeStart,
 		progress: Math.max(0, Math.min(100, ((window.now - window.start) / duration) * 100)),
 		remaining: Math.max(0, (beforeStart ? window.start : window.end) - window.now),
@@ -424,6 +426,12 @@ export function resolvePhase(
 
 export function fillText(text: string, cfg: ProjectorConfig, now: number): string {
 	const resolved = resolvePhase(cfg, now);
+	if (!resolved.scheduled) {
+		return text
+			.replace(/\{end\}/g, '--:--')
+			.replace(/\{start\}/g, '--:--')
+			.replace(/\{left\}/g, '--');
+	}
 	const minutesLeft = Math.max(0, Math.ceil((resolved.end - resolved.now) / 60));
 	return text
 		.replace(/\{end\}/g, formatHM(resolved.end))
@@ -433,7 +441,7 @@ export function fillText(text: string, cfg: ProjectorConfig, now: number): strin
 
 export function extendExam(cfg: ProjectorConfig, now: number, minutes: number): ProjectorConfig {
 	const amount = Math.max(0, Number.isFinite(minutes) ? minutes : 0) * 60;
-	if (amount === 0) return cfg;
+	if (amount === 0 || !hasSchedule(cfg)) return cfg;
 	const window = examWindow(cfg, now);
 	const newEnd = window.end + amount;
 	const shiftIfFuture = (milestone: Milestone): Milestone => {
@@ -443,14 +451,16 @@ export function extendExam(cfg: ProjectorConfig, now: number, minutes: number): 
 			? { ...milestone, time: formatHM(milestoneTime + amount) }
 			: milestone;
 	};
-	return {
+	return respaceMilestones({
 		...cfg,
 		end: formatHM(newEnd),
 		milestones: cfg.milestones.map(shiftIfFuture)
-	};
+	});
 }
 
+/** Lock built-in milestone times to the schedule; custom milestones keep their own times. */
 export function respaceMilestones(cfg: ProjectorConfig): ProjectorConfig {
+	if (!hasSchedule(cfg)) return cfg;
 	const start = toSeconds(cfg.start);
 	let end = toSeconds(cfg.end);
 	if (end < start) end += 86400;
