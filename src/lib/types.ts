@@ -2,15 +2,6 @@ export type AnnouncementPosition = 'top' | 'left';
 
 export type TimeSource = 'error' | 'ntp' | 'ntp_partial';
 
-export const NTP_SERVERS = [
-	'ntp.ui.ac.id',
-	'ntp.bmkg.go.id',
-	'time.cloudflare.com',
-	'time.google.com'
-] as const;
-
-export type NtpServer = (typeof NTP_SERVERS)[number];
-
 export interface Checkpoint {
 	id: string;
 	name: string;

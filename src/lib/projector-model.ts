@@ -1,6 +1,18 @@
-import { NTP_SERVERS, type NtpServer } from './types';
+import {
+	ASPECT_OPTIONS,
+	AspectRatio,
+	DEFAULT_ASPECT_RATIO,
+	NARROW_CANVAS_MAX_WIDTH_PX,
+	isAllowedAspectRatio
+} from '../constants/enums/aspect_ratios';
+import {
+	DEFAULT_NTP_PROVIDER,
+	NTP_PROVIDER_OPTIONS,
+	NtpProvider,
+	isAllowedNtpProvider
+} from '../constants/enums/ntp_providers';
 
-export { NTP_SERVERS, type NtpServer };
+export { ASPECT_OPTIONS, AspectRatio, NTP_PROVIDER_OPTIONS, NtpProvider };
 
 export interface Phase {
 	title: string;
@@ -23,8 +35,8 @@ export interface ProjectorConfig {
 	showNotice: boolean;
 	safe: number;
 	guide: boolean;
-	aspect: 'auto' | '16:9' | '16:10' | '4:3';
-	ntpServer: NtpServer;
+	aspect: AspectRatio | `${AspectRatio}`;
+	ntpServer: NtpProvider | `${NtpProvider}`;
 	highVisibility: boolean;
 	inverted: boolean;
 	before: Phase;
@@ -47,46 +59,6 @@ export const STORAGE_KEY = 'examDisplay.v2';
 
 const LEGACY_SETTINGS_KEY = 'examSettings';
 const LEGACY_NOTICE_KEY = 'examAnnouncements';
-const ASPECTS = ['auto', '16:9', '16:10', '4:3'] as const;
-
-export const ASPECT_OPTIONS = [
-	{ id: 'auto', label: 'Auto' },
-	{ id: '16:9', label: '16:9' },
-	{ id: '16:10', label: '16:10' },
-	{ id: '4:3', label: '4:3' }
-] as const;
-
-export const NTP_SERVER_OPTIONS: readonly {
-	id: NtpServer;
-	label: string;
-	description: string;
-	isWarning?: boolean;
-}[] = [
-	{
-		id: 'ntp.ui.ac.id',
-		label: 'ntp.ui.ac.id · UI Campus (Default)',
-		description:
-			'Maintains internal time consistency across UI campus servers and machines, but lags ~5 seconds behind global real clocks. Avoid mixing with external clocks not synced to ntp.ui.ac.id.',
-		isWarning: true
-	},
-	{
-		id: 'ntp.bmkg.go.id',
-		label: 'ntp.bmkg.go.id · BMKG Indonesia (Stratum 1)',
-		description:
-			'Indonesian national time standard (Stratum 1). Accurate to global real time; ensure all displays in the room use the same source.'
-	},
-	{
-		id: 'time.cloudflare.com',
-		label: 'time.cloudflare.com · Cloudflare (Stratum 1)',
-		description:
-			'Global anycast Stratum 1 reference with local Jakarta edge nodes. Accurate to global real time.'
-	},
-	{
-		id: 'time.google.com',
-		label: 'time.google.com · Google Public NTP (Stratum 1)',
-		description: 'Global Stratum 1 atomic clock fleet. Accurate to global real time.'
-	}
-];
 const HEX_COLOR = /^#[\da-f]{6}$/i;
 /** Built-in milestones whose times are locked to the exam schedule. */
 const BUILTIN_IDS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'];
@@ -150,8 +122,8 @@ export function defaultConfig(): ProjectorConfig {
 		showNotice: true,
 		safe: 12,
 		guide: false,
-		aspect: 'auto',
-		ntpServer: 'ntp.ui.ac.id',
+		aspect: DEFAULT_ASPECT_RATIO,
+		ntpServer: DEFAULT_NTP_PROVIDER,
 		highVisibility: false,
 		inverted: false,
 		before: { title: 'Not started', prompt: 'Starts at {start}', color: '#15171b' },
@@ -232,12 +204,8 @@ function normalizeConfig(value: unknown): ProjectorConfig {
 	if (!suppliedMilestones) {
 		milestones.splice(0, milestones.length, ...fallback.milestones.map((item) => ({ ...item })));
 	}
-	const aspect = ASPECTS.includes(value.aspect as (typeof ASPECTS)[number])
-		? (value.aspect as ProjectorConfig['aspect'])
-		: fallback.aspect;
-	const ntpServer = NTP_SERVERS.includes(value.ntpServer as NtpServer)
-		? (value.ntpServer as NtpServer)
-		: fallback.ntpServer;
+	const aspect = isAllowedAspectRatio(value.aspect) ? value.aspect : fallback.aspect;
+	const ntpServer = isAllowedNtpProvider(value.ntpServer) ? value.ntpServer : fallback.ntpServer;
 	return respaceMilestones({
 		title: typeof value.title === 'string' ? value.title : fallback.title,
 		start: optionalTime(value.start, fallback.start),
@@ -548,11 +516,11 @@ export function visibilityNotice(
 		.map((line) => line.trim())
 		.filter(Boolean);
 	const narrow =
-		cfg.aspect === '4:3' ||
-		(cfg.aspect === 'auto' &&
+		cfg.aspect === AspectRatio.STANDARD_4_3 ||
+		(cfg.aspect === AspectRatio.AUTO &&
 			typeof effectiveCanvasWidth === 'number' &&
 			Number.isFinite(effectiveCanvasWidth) &&
-			effectiveCanvasWidth <= 1560);
+			effectiveCanvasWidth <= NARROW_CANVAS_MAX_WIDTH_PX);
 	const blocked = cfg.safe >= 20;
 	const limit = narrow && blocked ? 48 : narrow || blocked ? 80 : 120;
 	const text = lines.join('\n');

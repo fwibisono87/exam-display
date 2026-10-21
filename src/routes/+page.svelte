@@ -11,12 +11,13 @@
 		type Rehearsal
 	} from '$lib/projector-model';
 	import type { NtpInfo, TimeResponse, TimeSource } from '$lib/types';
+	import { DEFAULT_NTP_PROVIDER } from '../constants/enums/ntp_providers';
 
 	let cfg = defaultConfig();
 	let rehearsal: Rehearsal = { enabled: false, base: 0, at: 0, fail: false };
 	let now = 0;
 	let timeSource: TimeSource = 'error';
-	let ntpInfo: NtpInfo = { server: 'ntp.ui.ac.id' };
+	let ntpInfo: NtpInfo = { server: DEFAULT_NTP_PROVIDER };
 	let timezone = 'Asia/Jakarta';
 	let healthStatus = 'checking…';
 	let open = false;

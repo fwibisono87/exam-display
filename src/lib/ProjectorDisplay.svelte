@@ -8,6 +8,16 @@
 		resolvePhase,
 		visibilityNotice
 	} from '$lib/projector-model';
+	import {
+		AspectRatio,
+		CANVAS_HEIGHT_PX,
+		CANVAS_WIDTH_16_10_PX,
+		CANVAS_WIDTH_16_9_PX,
+		CANVAS_WIDTH_4_3_PX,
+		MAX_DYNAMIC_CANVAS_WIDTH_PX,
+		MIN_DYNAMIC_CANVAS_WIDTH_PX
+	} from '../constants/enums/aspect_ratios';
+	import { DEFAULT_NTP_PROVIDER } from '../constants/enums/ntp_providers';
 
 	export let cfg: ProjectorConfig;
 	export let now: number;
@@ -18,8 +28,8 @@
 	export let calibration = false;
 	export let onNoticeOverflow: (value: boolean) => void = () => {};
 
-	const CANVAS_HEIGHT = 1080;
-	let canvasWidth = 1920;
+	const CANVAS_HEIGHT = CANVAS_HEIGHT_PX;
+	let canvasWidth = CANVAS_WIDTH_16_9_PX;
 	let scale = 1;
 	let viewportWidth = 0;
 	let viewportHeight = 0;
@@ -53,11 +63,16 @@
 		width: number,
 		height: number
 	): number {
-		if (aspect === '16:10') return 1728;
-		if (aspect === '4:3') return 1440;
-		if (aspect === '16:9') return 1920;
-		if (width <= 0 || height <= 0) return 1920;
-		return Math.round(Math.max(1280, Math.min(2880, (width / height) * CANVAS_HEIGHT)));
+		if (aspect === AspectRatio.WIDESCREEN_16_10) return CANVAS_WIDTH_16_10_PX;
+		if (aspect === AspectRatio.STANDARD_4_3) return CANVAS_WIDTH_4_3_PX;
+		if (aspect === AspectRatio.WIDESCREEN_16_9) return CANVAS_WIDTH_16_9_PX;
+		if (width <= 0 || height <= 0) return CANVAS_WIDTH_16_9_PX;
+		return Math.round(
+			Math.max(
+				MIN_DYNAMIC_CANVAS_WIDTH_PX,
+				Math.min(MAX_DYNAMIC_CANVAS_WIDTH_PX, (width / height) * CANVAS_HEIGHT)
+			)
+		);
 	}
 
 	$: canvasWidth = computeCanvasWidth(cfg.aspect, viewportWidth, viewportHeight);
@@ -77,7 +92,7 @@
 	$: visibilityNoticeText = visibilityNoticeState.text;
 	$: highVisibility = cfg.highVisibility;
 	$: inverted = cfg.inverted;
-	$: activeNtpServer = cfg.ntpServer || 'ntp.ui.ac.id';
+	$: activeNtpServer = cfg.ntpServer || DEFAULT_NTP_PROVIDER;
 	$: columnScale = railWidth / 620;
 	$: railEmpty = (error || !phaseState.scheduled) && !hasNotice;
 	$: layoutRailWidth = railEmpty ? 0 : railWidth;
@@ -85,6 +100,37 @@
 	$: phaseLimit = hasNotice
 		? `${Math.max(30, (highVisibility ? 35 : 55) - cfg.safe * 0.5)}%`
 		: '100%';
+	$: canvasCenter = controlsOpen && viewportWidth > 1100 ? 'calc(50% - 230px)' : '50%';
+	$: highVisibilityBg = inverted ? '#000' : '#fff';
+	$: highVisibilityFg = inverted ? '#fff' : '#000';
+	$: canvasStyle = `--canvas-width:${canvasWidth}px;--canvas-scale:${scale};--canvas-center:${canvasCenter};--rail-width:${layoutRailWidth}px;--safe-px:${safePx}px;--hv-bg:${highVisibilityBg};--hv-fg:${highVisibilityFg};`;
+	$: calibrationDigitsStyle = `--calibration-digits-size:${180 - cfg.safe * 2}px`;
+	$: calibrationSafeStyle = `height:${safePx}px`;
+	$: ntpStatusTitle = ntpUnavailable
+		? `${activeNtpServer} unreachable · using local machine time`
+		: `Synchronized with ${activeNtpServer}`;
+	$: ntpStatusAriaLabel = rehearsal
+		? 'Rehearsal preview'
+		: ntpUnavailable
+			? 'NTP unavailable · local machine clock'
+			: error
+				? 'Clock unavailable'
+				: `Clock synchronized · ${activeNtpServer}`;
+	$: ntpStatusLabel = rehearsal
+		? 'REHEARSAL'
+		: ntpUnavailable
+			? 'LOCAL CLOCK'
+			: highVisibility
+				? `NTP SYNCED · ${activeNtpServer}`
+				: `NTP · ${activeNtpServer}`;
+	$: errorDetailText = rehearsal
+		? 'Simulated clock failure · rehearsal'
+		: `${activeNtpServer} · no response · retrying in 30 s`;
+	$: clockAriaLabel = `${timeLabel}:${secondsLabel}`;
+	$: clockSecondsPx = Math.round(clockPx * (highVisibility ? 0.45 : 0.34));
+	$: phasePanelStyle = `--phase-color:${phase.color};--phase-flex:${phaseFlex};--phase-limit:${phaseLimit};--phase-title-size:${phaseTitlePx}px;--prompt-size:${promptPx}px;`;
+	$: phaseLabelText = phaseState.beforeStart ? 'Before start' : 'Now';
+	$: noticeLinesStyle = `--notice-lines:${noticeClampLines}`;
 	$: ticks = (() => {
 		const resolvedTime = resolvePhase(cfg, now);
 		const duration = Math.max(1, resolvedTime.end - resolvedTime.start);
@@ -115,8 +161,21 @@
 		});
 	})();
 	$: progress = Math.max(0, Math.min(100, phaseState.progress));
-	$: fitKey = `${JSON.stringify(cfg)}|${canvasWidth}|${now}|${error}|${rehearsal}|${controlsOpen}|${calibration}`;
-	$: if (mounted && fitKey) scheduleFit();
+	$: if (mounted) {
+		void [
+			cfg,
+			canvasWidth,
+			phaseTitle,
+			phasePrompt,
+			timeLabel,
+			remaining,
+			error,
+			rehearsal,
+			controlsOpen,
+			calibration
+		];
+		scheduleFit();
+	}
 
 	function toClockSeconds(value: string): number {
 		const [hours = '0', minutes = '0'] = value.split(':');
@@ -327,7 +386,7 @@
 		class:high-visibility={highVisibility || calibration}
 		class:inverted
 		data-testid="projector-display"
-		style={`--canvas-width:${canvasWidth}px;--canvas-scale:${scale};--canvas-center:${controlsOpen && viewportWidth > 1100 ? 'calc(50% - 230px)' : '50%'};--rail-width:${layoutRailWidth}px;--safe-px:${safePx}px;--hv-bg:${inverted ? '#000' : '#fff'};--hv-fg:${inverted ? '#fff' : '#000'};`}
+		style={canvasStyle}
 	>
 		{#if calibration}
 			<section
@@ -340,7 +399,7 @@
 				<div
 					class="calibration-digits"
 					data-testid="calibration-digits"
-					style={`--calibration-digits-size:${180 - cfg.safe * 2}px`}
+					style={calibrationDigitsStyle}
 				>
 					0123456789
 				</div>
@@ -365,7 +424,7 @@
 				</div>
 				<div class="calibration-exit">Exit with the Screen controls.</div>
 				{#if safePx > 0}
-					<div class="calibration-safe" style={`height:${safePx}px`}>
+					<div class="calibration-safe" style={calibrationSafeStyle}>
 						BLOCKED SIGHTLINE · SAFE AREA {cfg.safe}%
 					</div>
 				{/if}
@@ -379,25 +438,11 @@
 							class="ntp-status"
 							class:error={error || ntpUnavailable}
 							data-testid="ntp-status"
-							title={ntpUnavailable
-								? `${activeNtpServer} unreachable · using local machine time`
-								: `Synchronized with ${activeNtpServer}`}
+							title={ntpStatusTitle}
 							class:rehearsal
-							aria-label={rehearsal
-								? 'Rehearsal preview'
-								: ntpUnavailable
-									? 'NTP unavailable · local machine clock'
-									: error
-										? 'Clock unavailable'
-										: `Clock synchronized · ${activeNtpServer}`}
+							aria-label={ntpStatusAriaLabel}
 						>
-							<span class="ntp-dot"></span>{rehearsal
-								? 'REHEARSAL'
-								: ntpUnavailable
-									? 'LOCAL CLOCK'
-									: highVisibility
-										? `NTP SYNCED · ${activeNtpServer}`
-										: `NTP · ${activeNtpServer}`}
+							<span class="ntp-dot"></span>{ntpStatusLabel}
 						</div>
 					</header>
 
@@ -413,11 +458,7 @@
 							<div class="error-copy" bind:this={errorCopyElement}>
 								Don't use this screen for timing. The invigilator will announce the time.
 							</div>
-							<div class="error-detail">
-								{rehearsal
-									? 'Simulated clock failure · rehearsal'
-									: `${activeNtpServer} · no response · retrying in 30 s`}
-							</div>
+							<div class="error-detail">{errorDetailText}</div>
 						</section>
 					{:else}
 						<section class="clock-content" data-testid="clock-panel">
@@ -426,12 +467,10 @@
 									class="clock-line"
 									bind:this={clockElement}
 									data-testid="clock-time"
-									aria-label={`${timeLabel}:${secondsLabel}`}
+									aria-label={clockAriaLabel}
 								>
 									<span class="clock-main" style:font-size={`${clockPx}px`}>{timeLabel}</span>
-									<span
-										class="clock-seconds"
-										style:font-size={`${Math.round(clockPx * (highVisibility ? 0.45 : 0.34))}px`}
+									<span class="clock-seconds" style:font-size={`${clockSecondsPx}px`}
 										>:{secondsLabel}</span
 									>
 								</div>
@@ -479,12 +518,8 @@
 
 				{#if !railEmpty}<aside class="right-rail">
 						{#if !error && phaseState.scheduled}
-							<section
-								class="phase-panel"
-								bind:this={phaseElement}
-								style={`--phase-color:${phase.color};--phase-flex:${phaseFlex};--phase-limit:${phaseLimit};--phase-title-size:${phaseTitlePx}px;--prompt-size:${promptPx}px;`}
-							>
-								<div class="phase-label">{phaseState.beforeStart ? 'Before start' : 'Now'}</div>
+							<section class="phase-panel" bind:this={phaseElement} style={phasePanelStyle}>
+								<div class="phase-label">{phaseLabelText}</div>
 								<div class="phase-copy" bind:this={phaseTextElement} data-testid="current-phase">
 									{phaseTitle}
 								</div>
@@ -504,7 +539,7 @@
 									bind:this={visibilityNoticeElement}
 									data-testid="notice-copy"
 									style:font-size={`${noticePx}px`}
-									style={`--notice-lines:${noticeClampLines}`}
+									style={noticeLinesStyle}
 								>
 									{visibilityNoticeText}
 								</div>

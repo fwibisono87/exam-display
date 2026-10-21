@@ -1,7 +1,7 @@
 <script lang="ts">
 	import {
 		ASPECT_OPTIONS,
-		NTP_SERVER_OPTIONS,
+		NTP_PROVIDER_OPTIONS,
 		examWindow,
 		extendExam,
 		fillText,
@@ -15,7 +15,7 @@
 	} from '$lib/projector-model';
 	import type {
 		Milestone,
-		NtpServer,
+		NtpProvider,
 		Phase,
 		ProjectorConfig,
 		Rehearsal
@@ -89,7 +89,7 @@
 				? 'Partial NTP'
 				: 'NTP';
 	$: selectedNtpOption =
-		NTP_SERVER_OPTIONS.find((option) => option.id === cfg.ntpServer) ?? NTP_SERVER_OPTIONS[0];
+		NTP_PROVIDER_OPTIONS.find((option) => option.id === cfg.ntpServer) ?? NTP_PROVIDER_OPTIONS[0];
 
 	function patchConfig(patch: Partial<ProjectorConfig>) {
 		onConfig({ ...cfg, ...patch });
@@ -337,9 +337,9 @@
 						data-testid="ntp-server-select"
 						value={cfg.ntpServer}
 						on:change={(event) =>
-							patchConfig({ ntpServer: event.currentTarget.value as NtpServer })}
+							patchConfig({ ntpServer: event.currentTarget.value as NtpProvider })}
 					>
-						{#each NTP_SERVER_OPTIONS as option (option.id)}
+						{#each NTP_PROVIDER_OPTIONS as option (option.id)}
 							<option value={option.id}>{option.label}</option>
 						{/each}
 					</select>

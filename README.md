@@ -1,6 +1,6 @@
 # Exam Time Display
 
-A modern web application designed for displaying accurate time during exams with comprehensive exam management features. Built with SvelteKit and supporting `ntp.ui.ac.id` (default for campus-internal consistency) alongside Stratum 1 NTP servers (`ntp.bmkg.go.id`, `time.cloudflare.com`, `time.google.com`). Deployable on Node, Docker, or Kubernetes.
+A modern web application designed for displaying accurate time during exams with comprehensive exam management features. Built with SvelteKit and supporting `ntp.ui.ac.id` (default for campus-internal consistency) alongside official Indonesian and global NTP servers (`ntp.bsn.go.id` SNSU-BSN Stratum 1, `ntp.bmkg.go.id` BMKG Stratum 2, `time.cloudflare.com`, `time.google.com` Stratum 1). Deployable on Node, Docker, or Kubernetes.
 
 ## Projector display and operator console
 
@@ -11,7 +11,7 @@ and **Esc** to close controls. The Controls button appears when the pointer move
 The console has four tabs:
 
 - **Exam**: title, start/end times, +5/+10 minute extensions, milestone re-spacing,
-  NTP server selection (`ntp.ui.ac.id`, `ntp.bmkg.go.id`, `time.cloudflare.com`, `time.google.com`)
+  NTP server selection (`ntp.ui.ac.id`, `ntp.bsn.go.id`, `ntp.bmkg.go.id`, `time.cloudflare.com`, `time.google.com`)
   with contextual consistency/drift guidance, authoritative NTP status, manual sync, and explicit
   rehearsal with a time slider.
 - **Milestones**: edit the pre-start phase and milestone titles, prompts, colours,

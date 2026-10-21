@@ -2,20 +2,15 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { env } from '$env/dynamic/private';
 import { time as getSntpTime } from '@hapi/sntp';
+import type { NtpInfo, TimeResponse, TimeSource } from '$lib/types';
 import {
-	NTP_SERVERS,
-	type NtpInfo,
-	type NtpServer,
-	type TimeResponse,
-	type TimeSource
-} from '$lib/types';
+	DEFAULT_NTP_PROVIDER,
+	NTP_PROVIDERS,
+	isAllowedNtpProvider,
+	type NtpProvider
+} from '../../../constants/enums/ntp_providers';
 
-const DEFAULT_NTP_SERVER: NtpServer = 'ntp.ui.ac.id';
 const NTP_TIMEOUT_MS = 5000;
-
-function isAllowedNtpServer(value: string): value is NtpServer {
-	return (NTP_SERVERS as readonly string[]).includes(value);
-}
 
 interface NTPResult {
 	time: Date;
@@ -71,14 +66,14 @@ export const GET: RequestHandler = async ({ url }) => {
 	const configuredTimezone = env.TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone;
 	const requestedServer = url.searchParams.get('server')?.trim();
 
-	if (requestedServer && !isAllowedNtpServer(requestedServer)) {
+	if (requestedServer && !isAllowedNtpProvider(requestedServer)) {
 		const response: TimeResponse = {
 			timezone: configuredTimezone,
 			timeSource: 'error',
 			ntp: {
 				server: requestedServer,
 				error: 'invalid_ntp_server',
-				errorDetails: `NTP server must be one of: ${NTP_SERVERS.join(', ')}`
+				errorDetails: `NTP server must be one of: ${NTP_PROVIDERS.join(', ')}`
 			},
 			status: 'unhealthy',
 			debug: {
@@ -90,12 +85,12 @@ export const GET: RequestHandler = async ({ url }) => {
 		return json(response, { status: 400 });
 	}
 
-	const ntpServer: NtpServer =
-		requestedServer && isAllowedNtpServer(requestedServer)
+	const ntpServer: NtpProvider =
+		requestedServer && isAllowedNtpProvider(requestedServer)
 			? requestedServer
-			: env.NTP_SERVER && isAllowedNtpServer(env.NTP_SERVER)
+			: env.NTP_SERVER && isAllowedNtpProvider(env.NTP_SERVER)
 				? env.NTP_SERVER
-				: DEFAULT_NTP_SERVER;
+				: DEFAULT_NTP_PROVIDER;
 
 	let serverTime: Date | null = null;
 	let timeSource: TimeSource = 'error';

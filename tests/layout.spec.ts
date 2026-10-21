@@ -278,10 +278,10 @@ test('operator can switch NTP servers, see the contextual disclaimer, and update
 		'lags ~5 seconds behind global real clocks'
 	);
 
-	await panel.getByTestId('ntp-server-select').selectOption('time.cloudflare.com');
+	await panel.getByTestId('ntp-server-select').selectOption('ntp.bsn.go.id');
 	await expect(panel.getByTestId('ntp-disclaimer')).toContainText(
-		'Global anycast Stratum 1 reference'
+		'Official Indonesian national time standard UTC(IDN) operated by SNSU-BSN'
 	);
-	await expect(page.getByTestId('ntp-status')).toContainText('NTP · time.cloudflare.com');
-	expect(requestedServers).toContain('time.cloudflare.com');
+	await expect(page.getByTestId('ntp-status')).toContainText('NTP · ntp.bsn.go.id');
+	expect(requestedServers).toContain('ntp.bsn.go.id');
 });

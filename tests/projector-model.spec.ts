@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
+	AspectRatio,
+	NtpProvider,
 	defaultConfig,
 	examWindow,
 	extendExam,
@@ -268,18 +270,18 @@ test('two 60-character lines have the same high visibility budget as one 120-cha
 
 test('defaults to auto aspect ratio and ntp.ui.ac.id, and normalizes aspect and ntpServer', () => {
 	const defaults = defaultConfig();
-	expect(defaults.aspect).toBe('auto');
-	expect(defaults.ntpServer).toBe('ntp.ui.ac.id');
+	expect(defaults.aspect).toBe(AspectRatio.AUTO);
+	expect(defaults.ntpServer).toBe(NtpProvider.UI_CAMPUS);
 
 	const validCustom = loadState(
 		memoryStorage({
 			'examDisplay.v2': JSON.stringify({
-				cfg: { aspect: '16:10', ntpServer: 'time.cloudflare.com' }
+				cfg: { aspect: AspectRatio.WIDESCREEN_16_10, ntpServer: NtpProvider.BSN_STRATUM_1 }
 			})
 		})
 	);
-	expect(validCustom.cfg.aspect).toBe('16:10');
-	expect(validCustom.cfg.ntpServer).toBe('time.cloudflare.com');
+	expect(validCustom.cfg.aspect).toBe(AspectRatio.WIDESCREEN_16_10);
+	expect(validCustom.cfg.ntpServer).toBe(NtpProvider.BSN_STRATUM_1);
 
 	const invalidCustom = loadState(
 		memoryStorage({
@@ -288,14 +290,14 @@ test('defaults to auto aspect ratio and ntp.ui.ac.id, and normalizes aspect and 
 			})
 		})
 	);
-	expect(invalidCustom.cfg.aspect).toBe('auto');
-	expect(invalidCustom.cfg.ntpServer).toBe('ntp.ui.ac.id');
+	expect(invalidCustom.cfg.aspect).toBe(AspectRatio.AUTO);
+	expect(invalidCustom.cfg.ntpServer).toBe(NtpProvider.UI_CAMPUS);
 });
 
 test('visibilityNotice applies narrow budget in auto aspect mode when effectiveCanvasWidth is narrow', () => {
 	const cfg = {
 		...defaultConfig(),
-		aspect: 'auto' as const,
+		aspect: AspectRatio.AUTO,
 		safe: 30,
 		notice: 'Read carefully. '.repeat(30)
 	};
